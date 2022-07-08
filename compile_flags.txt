@@ -1,0 +1,7 @@
+-std=c++17
+-Wall
+-Wextra
+-Wno-missing-braces
+-DDEBUG
+-Iinclude
+-Ilib
