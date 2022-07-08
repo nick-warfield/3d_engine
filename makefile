@@ -13,7 +13,7 @@ CC = ccache clang++
 OPT = O2
 
 CFLAGS = -std=c++17 -Wall -Wextra -Wno-missing-braces -DDEBUG
-LDFLAGS =
+LDFLAGS = -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
 
 CFLAGS += -I$(INCLUDE_DIR) -I$(LIBRARY_DIR)
 
@@ -60,6 +60,7 @@ $(TEST_DIR)/.test: init-tests $(TEST_OBJECTS)
 all: $(BUILD_DIR)/$(BINARY_NAME) $(TEST_DIR)/.test
 
 run: $(BUILD_DIR)/$(BINARY_NAME)
+	@bspc rule -a '*' -o state=floating # creates the next window in a float state
 	@./$(BUILD_DIR)/$(BINARY_NAME)
 
 clean:
