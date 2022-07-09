@@ -30,6 +30,7 @@ const bool enable_validation_layers = false;
 struct SwapChain {
 	VkSwapchainKHR swap_chain;
 	std::vector<VkImage> images;
+	std::vector<VkImageView> image_views;
 	VkFormat format;
 	VkExtent2D extent;
 };
@@ -530,6 +531,31 @@ void init_swap_chain(
 	swap_chain.extent = extent;
 }
 
+void init_image_views(const VkDevice& device, SwapChain& swap_chain) {
+	swap_chain.image_views.resize(swap_chain.images.size());
+	for (size_t i = 0; i < swap_chain.images.size(); ++i) {
+		VkImageViewCreateInfo create_info{};
+		create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		create_info.image = swap_chain.images[i];
+		create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		create_info.format = swap_chain.format;
+
+		create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+		create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+		create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+		create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+		create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		create_info.subresourceRange.baseMipLevel = 0;
+		create_info.subresourceRange.levelCount = 1;
+		create_info.subresourceRange.baseArrayLayer = 0;
+		create_info.subresourceRange.layerCount = 1;
+
+		if (vkCreateImageView(device, &create_info, nullptr, &swap_chain.image_views[i]) != VK_SUCCESS)
+			throw std::runtime_error("failed to create image view");
+	}
+}
+
 int main()
 {
 	GLFWwindow* window = nullptr;
@@ -552,7 +578,9 @@ int main()
 
 		pick_physical_device(instance, surface, physical_device);
 		init_logical_device(surface, physical_device, device, graphics_queue, present_queue);
+
 		init_swap_chain(window, physical_device, device, surface, swap_chain);
+		init_image_views(device, swap_chain);
 
 		// main loop
 		while (!glfwWindowShouldClose(window)) {
@@ -560,6 +588,8 @@ int main()
 		}
 
 		// cleanup, reverse order of initiliztion
+		for (auto view : swap_chain.image_views)
+			vkDestroyImageView(device, view, nullptr);
 		vkDestroySwapchainKHR(device, swap_chain.swap_chain, nullptr);
 		vkDestroyDevice(device, nullptr);
 		vkDestroySurfaceKHR(instance, surface, nullptr);
