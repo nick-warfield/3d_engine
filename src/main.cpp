@@ -12,6 +12,7 @@
 #include <iostream>
 #include <map>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <vector>
 
@@ -28,11 +29,14 @@ const std::vector<const char*> validation_layers = {
 };
 
 VkResult CreateDebugUtilsMessengerEXT(
-	const VkInstance& instance,
+	VkInstance instance,
 	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
 	const VkAllocationCallbacks* pAllocator,
 	VkDebugUtilsMessengerEXT* pDebugMessenger)
 {
+	if (instance == VK_NULL_HANDLE) {
+		throw std::runtime_error("HERE!");
+	}
 	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
 		instance,
 		"vkCreateDebugUtilsMessengerEXT");
@@ -43,7 +47,7 @@ VkResult CreateDebugUtilsMessengerEXT(
 	}
 }
 void DestroyDebugUtilsMessengerEXT(
-	const VkInstance& instance,
+	VkInstance instance,
 	VkDebugUtilsMessengerEXT& debugMessenger,
 	const VkAllocationCallbacks* pAllocator)
 {
@@ -71,14 +75,16 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
 struct QueueFamilyIndices {
 	std::optional<uint32_t> graphics_family;
+	std::optional<uint32_t> present_family;
 
 	bool has_all() const
 	{
-		return graphics_family.has_value();
+		return graphics_family.has_value()
+			&& present_family.has_value();
 	}
 };
 
-QueueFamilyIndices find_queue_families(const VkPhysicalDevice& device)
+QueueFamilyIndices find_queue_families(const VkSurfaceKHR& surface, const VkPhysicalDevice& device)
 {
 	QueueFamilyIndices indices;
 
@@ -91,6 +97,11 @@ QueueFamilyIndices find_queue_families(const VkPhysicalDevice& device)
 	for (uint32_t i = 0; i < queue_family_count; ++i) {
 		if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
 			indices.graphics_family = i;
+
+		VkBool32 present_support = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
+		if (present_support)
+			indices.present_family = i;
 	}
 
 	return indices;
@@ -146,11 +157,6 @@ void init_vulkan(VkInstance& instance)
 		std::cout << '\t' << glfwExtensions[i] << '\n';
 	}
 	std::cout << '\n';
-
-	if (enable_validation_layers) {
-		glfwExtensions[glfwExtensionCount] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
-		glfwExtensionCount++;
-	}
 
 	uint32_t extensionCount = 0;
 	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
@@ -234,7 +240,36 @@ void init_debugger(const VkInstance& instance, VkDebugUtilsMessengerEXT& debug_m
 	}
 }
 
-void pick_physical_device(const VkInstance& instance, VkPhysicalDevice& physical_device)
+void init_surface(const VkInstance& instance, GLFWwindow* window, VkSurfaceKHR& surface)
+{
+	if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create window surface");
+	}
+}
+
+int rate_device(const VkSurfaceKHR& surface, const VkPhysicalDevice& device)
+{
+	VkPhysicalDeviceProperties device_properties;
+	vkGetPhysicalDeviceProperties(device, &device_properties);
+
+	VkPhysicalDeviceFeatures dev_features;
+	vkGetPhysicalDeviceFeatures(device, &dev_features);
+
+	int score = 1000 * (int)(device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU);
+	score += device_properties.limits.maxImageDimension2D;
+
+	// Required Features
+	auto indices = find_queue_families(surface, device);
+	score *= (int)indices.has_all();
+	score *= (int)dev_features.geometryShader;
+
+	return score;
+}
+
+void pick_physical_device(
+	const VkInstance& instance,
+	VkSurfaceKHR& surface,
+	VkPhysicalDevice& physical_device)
 {
 	uint32_t device_count = 0;
 	vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
@@ -243,27 +278,9 @@ void pick_physical_device(const VkInstance& instance, VkPhysicalDevice& physical
 	std::vector<VkPhysicalDevice> devices(device_count);
 	vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
 
-	auto rate_device = [](const VkPhysicalDevice& dev) {
-		VkPhysicalDeviceProperties dev_properties;
-		vkGetPhysicalDeviceProperties(dev, &dev_properties);
-
-		VkPhysicalDeviceFeatures dev_features;
-		vkGetPhysicalDeviceFeatures(dev, &dev_features);
-
-		int score = 1000 * (int)(dev_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU);
-		score += dev_properties.limits.maxImageDimension2D;
-
-		// Required Features
-		auto indices = find_queue_families(dev);
-		score *= (int)indices.has_all();
-		score *= (int)dev_features.geometryShader;
-
-		return score;
-	};
-
 	std::map<int, VkPhysicalDevice> candidates;
 	for (const auto& dev : devices) {
-		candidates[rate_device(dev)] = dev;
+		candidates[rate_device(surface, dev)] = dev;
 	}
 	auto best_device = *candidates.rbegin();
 	if (best_device.first > 0)
@@ -275,26 +292,38 @@ void pick_physical_device(const VkInstance& instance, VkPhysicalDevice& physical
 }
 
 void create_logical_device(
-		const VkPhysicalDevice& physical_device,
-		VkDevice& device,
-		VkQueue& graphics_queue)
+	const VkSurfaceKHR& surface,
+	const VkPhysicalDevice& physical_device,
+	VkDevice& device,
+	VkQueue& graphics_queue,
+	VkQueue& present_queue)
 {
-	QueueFamilyIndices indices = find_queue_families(physical_device);
+	QueueFamilyIndices indices = find_queue_families(surface, physical_device);
 
-	VkDeviceQueueCreateInfo queue_create_info {};
-	queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queue_create_info.queueFamilyIndex = indices.graphics_family.value();
-	queue_create_info.queueCount = 1;
-	float priority = 1.0f;
-	queue_create_info.pQueuePriorities = &priority;
+	std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
+	std::set<uint32_t> unique_queue_families = {
+		indices.graphics_family.value(),
+		indices.present_family.value(),
+	};
+
+	for (uint32_t queue_family : unique_queue_families) {
+		VkDeviceQueueCreateInfo create_info {};
+		create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		create_info.queueFamilyIndex = queue_family;
+		create_info.queueCount = 1;
+		float priority = 1.0f;
+		create_info.pQueuePriorities = &priority;
+
+		queue_create_infos.push_back(create_info);
+	}
 
 	VkPhysicalDeviceFeatures device_features {};
 	// todo: finish this
 
 	VkDeviceCreateInfo create_info {};
 	create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	create_info.pQueueCreateInfos = &queue_create_info;
-	create_info.queueCreateInfoCount = 1;
+	create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
+	create_info.pQueueCreateInfos = queue_create_infos.data();
 	create_info.pEnabledFeatures = &device_features;
 	create_info.enabledExtensionCount = 0;
 
@@ -311,24 +340,29 @@ void create_logical_device(
 	// creating logical device also create queues for it automatically
 	// only used one queue, so only need 0 for index
 	vkGetDeviceQueue(device, *indices.graphics_family, 0, &graphics_queue);
+	vkGetDeviceQueue(device, *indices.present_family, 0, &present_queue);
 }
 
 int main()
 {
 	GLFWwindow* window = nullptr;
-	VkInstance instance = VK_NULL_HANDLE;
+	VkInstance instance;
 	VkDebugUtilsMessengerEXT debug_messenger = VK_NULL_HANDLE;
-	VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+	VkPhysicalDevice physical_device;
 	VkDevice device;
+
+	VkSurfaceKHR surface;
 	VkQueue graphics_queue;
+	VkQueue present_queue;
 
 	try {
 		init_window(window);
 		init_vulkan(instance);
 		init_debugger(instance, debug_messenger);
+		init_surface(instance, window, surface);
 
-		pick_physical_device(instance, physical_device);
-		create_logical_device(physical_device, device, graphics_queue);
+		pick_physical_device(instance, surface, physical_device);
+		create_logical_device(surface, physical_device, device, graphics_queue, present_queue);
 
 		// main loop
 		while (!glfwWindowShouldClose(window)) {
@@ -337,6 +371,7 @@ int main()
 
 		// cleanup, reverse order of initiliztion
 		vkDestroyDevice(device, nullptr);
+		vkDestroySurfaceKHR(instance, surface, nullptr);
 		if (enable_validation_layers)
 			DestroyDebugUtilsMessengerEXT(instance, debug_messenger, nullptr);
 		vkDestroyInstance(instance, nullptr);
