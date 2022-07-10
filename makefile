@@ -22,6 +22,11 @@ SOURCE = $(wildcard *, $(SOURCE_DIR)/*.cpp)
 OBJECTS := $(patsubst %.cpp,%.o, $(notdir $(SOURCE)))
 OBJECTS := $(addprefix $(OBJECT_DIR)/, $(OBJECTS))
 
+SHADERS := $(notdir $(wildcard *, $(SOURCE_DIR)/shaders/*))
+SHADERS := $(subst .,_, $(SHADERS))
+SHADERS := $(addsuffix .spv, $(SHADERS))
+SHADERS := $(addprefix $(BUILD_DIR)/shaders/, $(SHADERS))
+
 TEST_SOURCE = $(wildcard *, $(TEST_DIR)/*.cpp)
 TEST_OBJECTS := $(patsubst %.cpp,%.o, $(notdir $(TEST_SOURCE)))
 TEST_OBJECTS := $(addprefix $(TEST_DIR)/obj/, $(TEST_OBJECTS))
@@ -40,10 +45,16 @@ else ifeq (bench,$(firstword $(MAKECMDGOALS)))
   $(eval $(RUN_ARGS):;@:)
 endif
 
+$(BUILD_DIR)/shaders/%_vert.spv: $(SOURCE_DIR)/shaders/%.vert
+	glslc -o $@ $<
+
+$(BUILD_DIR)/shaders/%_frag.spv: $(SOURCE_DIR)/shaders/%.frag
+	glslc -o $@ $<
+
 $(OBJECT_DIR)/%.o: $(SOURCE_DIR)/%.cpp $(HEADERS)
 	$(CC) -c -o $@ $< $(CFLAGS) -$(OPT)
 
-$(BUILD_DIR)/$(BINARY_NAME): init-build $(OBJECTS)
+$(BUILD_DIR)/$(BINARY_NAME): init-build $(OBJECTS) $(SHADERS)
 	$(CC) -o $@ $(OBJECTS) $(CFLAGS) -$(OPT) $(LDFLAGS)
 
 $(TEST_DIR)/obj/benchmark_%.o: $(TEST_DIR)/benchmark_%.cpp $(HEADERS)
@@ -94,6 +105,7 @@ init-tests:
 init-build:
 	@[ -d $(OBJECT_DIR) ] || mkdir -p $(OBJECT_DIR)
 	@[ -d $(BUILD_DIR)  ] || mkdir -p $(BUILD_DIR)
+	@[ -d $(BUILD_DIR)/shaders  ] || mkdir -p $(BUILD_DIR)/shaders
 	@[[ !(! -d $(BUILD_DIR)/$(RESOURCE_DIR) && -d $(RESOURCE_DIR)) ]] \
 		|| (ln -s "$(realpath $(RESOURCE_DIR))" $(BUILD_DIR); \
 		echo "$(RESOURCE_DIR) linked to $(BUILD_DIR)")
