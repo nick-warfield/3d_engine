@@ -127,38 +127,19 @@ SwapChainSupportDetails querySwapChainSupport(
 struct QueueFamily {
 	std::optional<uint32_t> index;
 	VkQueue queue = VK_NULL_HANDLE;
-
-	enum {
-		GRAPHICS,
-		PRESENT
-	};
 };
-std::vector<QueueFamily> find_queue_families(const VkSurfaceKHR& surface, const VkPhysicalDevice& device)
-{
-	uint32_t queue_family_count = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
-
-	std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
-	std::vector<QueueFamily> families(queue_family_count, QueueFamily {});
-
-	for (uint32_t i = 0; i < queue_family_count; ++i) {
-		if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-			families[QueueFamily::GRAPHICS].index = i;
-
-		VkBool32 present_support = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
-		if (present_support)
-			families[QueueFamily::PRESENT].index = i;
-	}
-
-	return families;
-}
+std::vector<QueueFamily> find_queue_families(
+	const VkSurfaceKHR& surface,
+	const VkPhysicalDevice& device);
 
 struct Device {
 	VkPhysicalDevice physical_device;
 	VkDevice logical_device;
 
+	enum {
+		GRAPHICS,
+		PRESENT
+	};
 	std::vector<QueueFamily> queue_families;
 	std::optional<SwapChainSupportDetails> supported_swap_chain_features;
 
@@ -204,8 +185,8 @@ struct Device {
 		int score = 1000 * (int)(device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU);
 		score += device_properties.limits.maxImageDimension2D;
 
-		bool has_required_features = queue_families[QueueFamily::GRAPHICS].index.has_value()
-			&& queue_families[QueueFamily::PRESENT].index.has_value()
+		bool has_required_features = queue_families[Device::GRAPHICS].index.has_value()
+			&& queue_families[Device::PRESENT].index.has_value()
 			&& !supported_swap_chain_features.value().formats.empty()
 			&& !supported_swap_chain_features.value().present_modes.empty()
 			&& dev_features.geometryShader;
@@ -213,6 +194,28 @@ struct Device {
 		return score * (int)has_required_features;
 	}
 };
+
+std::vector<QueueFamily> find_queue_families(const VkSurfaceKHR& surface, const VkPhysicalDevice& device)
+{
+	uint32_t queue_family_count = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
+
+	std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
+	std::vector<QueueFamily> families(queue_family_count, QueueFamily {});
+
+	for (uint32_t i = 0; i < queue_family_count; ++i) {
+		if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+			families[Device::GRAPHICS].index = i;
+
+		VkBool32 present_support = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
+		if (present_support)
+			families[Device::PRESENT].index = i;
+	}
+
+	return families;
+}
 
 void init_window(GLFWwindow*& window)
 {
@@ -385,8 +388,8 @@ void init_logical_device(Device& device)
 {
 	std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
 	std::set<uint32_t> unique_queue_families = {
-		device.queue_families[QueueFamily::GRAPHICS].index.value(),
-		device.queue_families[QueueFamily::PRESENT].index.value(),
+		device.queue_families[Device::GRAPHICS].index.value(),
+		device.queue_families[Device::PRESENT].index.value(),
 	};
 
 	for (uint32_t queue_family : unique_queue_families) {
@@ -425,14 +428,14 @@ void init_logical_device(Device& device)
 	// only used one queue, so only need 0 for index
 	vkGetDeviceQueue(
 		device.logical_device,
-		device.queue_families[QueueFamily::GRAPHICS].index.value(),
+		device.queue_families[Device::GRAPHICS].index.value(),
 		0,
-		&device.queue_families[QueueFamily::GRAPHICS].queue);
+		&device.queue_families[Device::GRAPHICS].queue);
 	vkGetDeviceQueue(
 		device.logical_device,
-		device.queue_families[QueueFamily::PRESENT].index.value(),
+		device.queue_families[Device::PRESENT].index.value(),
 		0,
-		&device.queue_families[QueueFamily::PRESENT].queue);
+		&device.queue_families[Device::PRESENT].queue);
 }
 
 VkSurfaceFormatKHR choose_swap_chain_surface_format(
@@ -508,8 +511,8 @@ void init_swap_chain(
 	create_info.imageArrayLayers = 1;
 	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	auto g_index = device.queue_families[QueueFamily::GRAPHICS].index.value();
-	auto p_index = device.queue_families[QueueFamily::PRESENT].index.value();
+	auto g_index = device.queue_families[Device::GRAPHICS].index.value();
+	auto p_index = device.queue_families[Device::PRESENT].index.value();
 	uint32_t queue_family_indices[] = {
 		g_index,
 		p_index
