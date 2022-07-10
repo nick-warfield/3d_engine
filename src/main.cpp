@@ -140,7 +140,7 @@ std::vector<QueueFamily> find_queue_families(const VkSurfaceKHR& surface, const 
 
 	std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
-	std::vector<QueueFamily> families(queue_family_count, QueueFamily{});
+	std::vector<QueueFamily> families(queue_family_count, QueueFamily {});
 
 	for (uint32_t i = 0; i < queue_family_count; ++i) {
 		if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
@@ -424,15 +424,15 @@ void init_logical_device(Device& device)
 	// creating logical device also create queues for it automatically
 	// only used one queue, so only need 0 for index
 	vkGetDeviceQueue(
-			device.logical_device,
-			device.queue_families[QueueFamily::GRAPHICS].index.value(),
-			0,
-			&device.queue_families[QueueFamily::GRAPHICS].queue);
+		device.logical_device,
+		device.queue_families[QueueFamily::GRAPHICS].index.value(),
+		0,
+		&device.queue_families[QueueFamily::GRAPHICS].queue);
 	vkGetDeviceQueue(
-			device.logical_device,
-			device.queue_families[QueueFamily::PRESENT].index.value(),
-			0,
-			&device.queue_families[QueueFamily::PRESENT].queue);
+		device.logical_device,
+		device.queue_families[QueueFamily::PRESENT].index.value(),
+		0,
+		&device.queue_families[QueueFamily::PRESENT].queue);
 }
 
 VkSurfaceFormatKHR choose_swap_chain_surface_format(
@@ -532,24 +532,24 @@ void init_swap_chain(
 	create_info.oldSwapchain = VK_NULL_HANDLE;
 
 	if (vkCreateSwapchainKHR(
-				device.logical_device,
-				&create_info,
-				nullptr,
-				&swap_chain.swap_chain)
-			!= VK_SUCCESS)
+			device.logical_device,
+			&create_info,
+			nullptr,
+			&swap_chain.swap_chain)
+		!= VK_SUCCESS)
 		throw std::runtime_error("failed to create swap chain");
 
 	vkGetSwapchainImagesKHR(
-			device.logical_device,
-			swap_chain.swap_chain,
-			&image_count,
-			nullptr);
+		device.logical_device,
+		swap_chain.swap_chain,
+		&image_count,
+		nullptr);
 	swap_chain.images.resize(image_count);
 	vkGetSwapchainImagesKHR(
-			device.logical_device,
-			swap_chain.swap_chain,
-			&image_count,
-			swap_chain.images.data());
+		device.logical_device,
+		swap_chain.swap_chain,
+		&image_count,
+		swap_chain.images.data());
 	swap_chain.format = surface_format.format;
 	swap_chain.extent = extent;
 }
@@ -576,11 +576,11 @@ void init_image_views(const Device& device, SwapChain& swap_chain)
 		create_info.subresourceRange.layerCount = 1;
 
 		if (vkCreateImageView(
-					device.logical_device,
-					&create_info,
-					nullptr,
-					&swap_chain.image_views[i])
-				!= VK_SUCCESS)
+				device.logical_device,
+				&create_info,
+				nullptr,
+				&swap_chain.image_views[i])
+			!= VK_SUCCESS)
 			throw std::runtime_error("failed to create image view");
 	}
 }
