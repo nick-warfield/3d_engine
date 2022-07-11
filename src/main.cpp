@@ -162,7 +162,8 @@ struct Device {
 
 	enum {
 		GRAPHICS,
-		PRESENT
+		PRESENT,
+		QUEUE_COUNT
 	};
 	std::vector<QueueFamily> queue_families;
 	std::optional<SwapChainSupportDetails> supported_swap_chain_features;
@@ -226,10 +227,10 @@ std::vector<QueueFamily> find_queue_families(const VkSurfaceKHR& surface, const 
 
 	std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
-	std::vector<QueueFamily> families(queue_family_count, QueueFamily {});
+	std::vector<QueueFamily> families(Device::QUEUE_COUNT, QueueFamily {});
 
 	for (uint32_t i = 0; i < queue_family_count; ++i) {
-		if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+		if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) 
 			families[Device::GRAPHICS].index = i;
 
 		VkBool32 present_support = false;
