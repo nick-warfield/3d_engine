@@ -929,7 +929,7 @@ void init_sync_objects(
 	fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	const auto l_dev = device.logical_device;
+	const auto& l_dev = device.logical_device;
 	if (vkCreateSemaphore(l_dev, &semaphore_info, nullptr, &image_available_semaphore) != VK_SUCCESS
 		|| vkCreateSemaphore(l_dev, &semaphore_info, nullptr, &render_finished_semaphore) != VK_SUCCESS
 		|| vkCreateFence(l_dev, &fence_info, nullptr, &in_flight_fence) != VK_SUCCESS)
@@ -997,11 +997,10 @@ void draw_frame(
 	present_info.pImageIndices = &image_index;
 	present_info.pResults = nullptr;
 
-	// this is crashing for some reason
-	// as far as I can tell, nothing is null, so something must have a very bad value?
-	// maybe an index out of bounds error somewhere?
+	// need to figure out why setting pNext got vkQueuePresentKHR to work
+	present_info.pNext = nullptr;
+
 	vkQueuePresentKHR(device.queue_families[Device::PRESENT].queue, &present_info);
-	std::cout << "Presenting!\n";
 }
 
 int main(int argc, char** argv)
@@ -1068,7 +1067,6 @@ int main(int argc, char** argv)
 					image_available_semaphore,
 					render_finished_semaphore,
 					in_flight_fence);
-			break;
 		}
 		vkDeviceWaitIdle(device.logical_device);
 
