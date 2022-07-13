@@ -1,16 +1,24 @@
-#include "constants.hpp"
-#include <vulkan/vulkan_core.h>
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan_core.h>
 
+#include <glm/glm.hpp>
+#include "glm/fwd.hpp"
+
+#include "constants.hpp"
 #include "window.hpp"
 #include "device.hpp"
 #include "renderer.hpp"
+#include "vertex.hpp"
 
-using namespace gfx;
+#include <vector>
+#include <array>
 
 static std::filesystem::path root_path;
-const std::filesystem::path& Root::path(root_path);
+const std::filesystem::path& gfx::Root::path(root_path);
+
+using namespace gfx;
 
 int main(int argc, char** argv)
 {

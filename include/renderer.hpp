@@ -21,8 +21,12 @@ struct Renderer {
 	VkFormat format;
 	VkExtent2D extent;
 	VkSwapchainKHR swap_chain = VK_NULL_HANDLE;
+
 	VkCommandPool command_pool = VK_NULL_HANDLE;
 	std::vector<VkCommandBuffer> command_buffers;
+
+	VkDeviceMemory vertex_buffer_memory;
+	VkBuffer vertex_buffer;
 
 	// These are all associated
 	std::vector<VkImage> swap_chain_images;
@@ -49,6 +53,7 @@ private:
 	void init_framebuffers(const VkDevice& device);
 	void init_command_buffers(const VkDevice& device, uint32_t graphics_queue_index);
 	void init_sync_objects(const VkDevice& device);
+	void init_vertex_buffer(const Device& device);
 
 	void record_command_buffer(int buffer_index, int image_index);
 	void recreate_swap_chain(Window&, Device&);

@@ -1,9 +1,12 @@
 #include "renderer.hpp"
 #include "device.hpp"
 #include "window.hpp"
+#include "vertex.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <fstream>
+#include <vulkan/vulkan_core.h>
 
 namespace gfx {
 
@@ -27,6 +30,7 @@ void Renderer::init(const Window& window, const Device& device)
 	init_render_pass(dev);
 	init_framebuffers(dev);
 	init_graphics_pipeline(dev);
+	init_vertex_buffer(device);
 	init_command_buffers(dev, device.graphics_queue_family.index.value());
 	init_sync_objects(dev);
 }
@@ -41,6 +45,9 @@ void Renderer::deinit(const Device& device, const VkAllocationCallbacks* pAlloca
 		vkDestroySemaphore(dev, semaphore, pAllocator);
 	for (auto& fence : in_flight_fences)
 		vkDestroyFence(dev, fence, pAllocator);
+
+	vkDestroyBuffer(dev, vertex_buffer, pAllocator);
+	vkFreeMemory(dev, vertex_buffer_memory, pAllocator);
 
 	vkDestroyCommandPool(dev, command_pool, pAllocator);
 	for (auto framebuffer : framebuffers)
@@ -280,12 +287,15 @@ void Renderer::init_graphics_pipeline(const VkDevice& device)
 	dynamic_state.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
 	dynamic_state.pDynamicStates = dynamic_states.data();
 
+	auto binding_description = Vertex::get_binding_description();
+	auto attribute_description = Vertex::get_attribute_description();
+
 	VkPipelineVertexInputStateCreateInfo vertex_input_info {};
 	vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertex_input_info.vertexBindingDescriptionCount = 0;
-	vertex_input_info.pVertexBindingDescriptions = nullptr;
-	vertex_input_info.vertexAttributeDescriptionCount = 0;
-	vertex_input_info.pVertexAttributeDescriptions = nullptr;
+	vertex_input_info.vertexBindingDescriptionCount = 1;
+	vertex_input_info.pVertexBindingDescriptions = &binding_description;
+	vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_description.size());
+	vertex_input_info.pVertexAttributeDescriptions = attribute_description.data();
 
 	VkPipelineInputAssemblyStateCreateInfo input_assembly {};
 	input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -447,6 +457,56 @@ void Renderer::init_sync_objects(const VkDevice& device)
 		throw std::runtime_error("failed to create synchronization objects");
 }
 
+void Renderer::init_vertex_buffer(const Device& device) {
+	VkBufferCreateInfo buffer_info{};
+	buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_info.size = sizeof(Vertex) * vertices.size();
+	buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	auto dev = device.logical_device;
+	if (vkCreateBuffer(dev, &buffer_info, nullptr, &vertex_buffer) != VK_SUCCESS)
+		throw std::runtime_error("failed to create vertex buffer");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements(dev, vertex_buffer, &memory_requirements);
+	
+	auto find_memory_type = [device](
+			uint32_t type_filter,
+			VkMemoryPropertyFlags property_flags)
+	{
+		auto mem_props = device.memory_properties;
+		for (uint32_t i = 0; i < mem_props.memoryTypeCount; ++i) {
+			auto flags = mem_props.memoryTypes[i].propertyFlags;
+			if (type_filter & (1 << i)
+					&& (flags & property_flags) == property_flags)
+				return i;
+		}
+
+		throw std::runtime_error("failed to find suitable memory type");
+	};
+
+	auto mem_index = find_memory_type(
+			memory_requirements.memoryTypeBits,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+			| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	VkMemoryAllocateInfo alloc_info{};
+	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	alloc_info.allocationSize = memory_requirements.size;
+	alloc_info.memoryTypeIndex = mem_index;
+
+	if (vkAllocateMemory(dev, &alloc_info, nullptr, &vertex_buffer_memory) != VK_SUCCESS)
+		throw std::runtime_error("failed to allocate vertex buffer memory");
+
+	vkBindBufferMemory(dev, vertex_buffer, vertex_buffer_memory, 0);
+
+	void* data;
+	vkMapMemory(dev, vertex_buffer_memory, 0, buffer_info.size, 0, &data);
+	memcpy(data, vertices.data(), (size_t)buffer_info.size);
+	vkUnmapMemory(dev, vertex_buffer_memory);
+}
+
 void Renderer::record_command_buffer(int buffer_index, int image_index)
 {
 	VkCommandBufferBeginInfo begin_info {};
@@ -470,6 +530,15 @@ void Renderer::record_command_buffer(int buffer_index, int image_index)
 
 	vkCmdBeginRenderPass(command_buffers[buffer_index], &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindPipeline(command_buffers[buffer_index], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+
+	VkBuffer vertex_buffers[] = { vertex_buffer };
+	VkDeviceSize offsets[] = { 0 };
+	vkCmdBindVertexBuffers(
+			command_buffers[buffer_index],
+			0,
+			1,
+			vertex_buffers,
+			offsets);
 
 	VkViewport viewport {};
 	viewport.x = 0.0f;

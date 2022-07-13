@@ -5,10 +5,18 @@
 #include <vector>
 #include <filesystem>
 
+#include "vertex.hpp"
+
 namespace gfx {
 
 struct Root {
 	static const std::filesystem::path& path;
+};
+
+const std::vector<Vertex> vertices = {
+    {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+    {{0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
 };
 
 const uint32_t WIDTH = 800;

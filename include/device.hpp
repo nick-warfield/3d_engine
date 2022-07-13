@@ -25,9 +25,9 @@ struct Device {
 	VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 	VkDevice logical_device = VK_NULL_HANDLE;
 
+	VkPhysicalDeviceMemoryProperties memory_properties;
 	QueueFamily graphics_queue_family;
 	QueueFamily present_queue_family;
-
 	SwapChainSupportInfo supported_swap_chain_features;
 
 	void init(const VkInstance& instance, const VkSurfaceKHR& surface);

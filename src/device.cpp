@@ -54,6 +54,8 @@ void Device::init(const VkInstance& instance, const VkSurfaceKHR& surface)
 		present_queue_family.index.value(),
 		0,
 		&present_queue_family.queue);
+
+	vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
 }
 
 void Device::deinit(const VkAllocationCallbacks* pAllocator)
