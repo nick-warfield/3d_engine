@@ -10,6 +10,7 @@
 #include "window.hpp"
 #include "device.hpp"
 #include "renderer.hpp"
+#include "buffer.hpp"
 #include "vertex.hpp"
 
 #include <vector>
@@ -27,22 +28,25 @@ int main(int argc, char** argv)
 
 	Window window;
 	Device device;
+	BufferData buffers;
 	Renderer renderer;
 
 	try {
 		window.init("Vulkan Project", WIDTH, HEIGHT);
 		device.init(window.instance, window.surface);
+		buffers.init(device);
 		renderer.init(window, device);
 
 		// main loop
 		while (!glfwWindowShouldClose(window.glfw_window)) {
 			glfwPollEvents();
-			renderer.draw(window, device);
+			renderer.draw(window, device, buffers);
 		}
 		vkDeviceWaitIdle(device.logical_device);
 
 		// cleanup, reverse order of initiliztion
 		renderer.deinit(device);
+		buffers.deinit(device);
 		device.deinit();
 		window.deinit();
 

@@ -6,12 +6,11 @@
 
 #include <vector>
 
-#include "constants.hpp"
-
 namespace gfx {
 
 struct Window;
 struct Device;
+struct BufferData;
 
 struct Renderer {
 	int width, height;
@@ -22,11 +21,9 @@ struct Renderer {
 	VkExtent2D extent;
 	VkSwapchainKHR swap_chain = VK_NULL_HANDLE;
 
-	VkCommandPool command_pool = VK_NULL_HANDLE;
+	VkCommandPool graphics_command_pool = VK_NULL_HANDLE;
+	VkCommandPool transfer_command_pool = VK_NULL_HANDLE;
 	std::vector<VkCommandBuffer> command_buffers;
-
-	VkDeviceMemory vertex_buffer_memory;
-	VkBuffer vertex_buffer;
 
 	// These are all associated
 	std::vector<VkImage> swap_chain_images;
@@ -43,7 +40,7 @@ struct Renderer {
 
 	void init(const Window& window, const Device& device);
 	void deinit(const Device& device, const VkAllocationCallbacks* pAllocator = nullptr);
-	void draw(Window& window, Device& device);
+	void draw(Window& window, Device& device, const BufferData& buffers);
 
 private:
 	void init_swap_chain(const Device& device, const Window& window);
@@ -51,11 +48,14 @@ private:
 	void init_render_pass(const VkDevice& device);
 	void init_graphics_pipeline(const VkDevice& device);
 	void init_framebuffers(const VkDevice& device);
-	void init_command_buffers(const VkDevice& device, uint32_t graphics_queue_index);
+	void init_command_buffers(const Device& device);
 	void init_sync_objects(const VkDevice& device);
-	void init_vertex_buffer(const Device& device);
 
-	void record_command_buffer(int buffer_index, int image_index);
+	void record_command_buffer(
+		VkCommandBuffer& command_buffer,
+		const VkBuffer& vertex_buffer,
+		const VkBuffer& index_buffer,
+		int image_index);
 	void recreate_swap_chain(Window&, Device&);
 };
 

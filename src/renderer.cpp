@@ -1,12 +1,15 @@
 #include "renderer.hpp"
 #include "device.hpp"
-#include "window.hpp"
 #include "vertex.hpp"
+#include "window.hpp"
+#include "buffer.hpp"
+
+#include <vulkan/vulkan_core.h>
 
 #include <algorithm>
 #include <cstdint>
 #include <fstream>
-#include <vulkan/vulkan_core.h>
+#include <set>
 
 namespace gfx {
 
@@ -30,8 +33,7 @@ void Renderer::init(const Window& window, const Device& device)
 	init_render_pass(dev);
 	init_framebuffers(dev);
 	init_graphics_pipeline(dev);
-	init_vertex_buffer(device);
-	init_command_buffers(dev, device.graphics_queue_family.index.value());
+	init_command_buffers(device);
 	init_sync_objects(dev);
 }
 
@@ -46,10 +48,8 @@ void Renderer::deinit(const Device& device, const VkAllocationCallbacks* pAlloca
 	for (auto& fence : in_flight_fences)
 		vkDestroyFence(dev, fence, pAllocator);
 
-	vkDestroyBuffer(dev, vertex_buffer, pAllocator);
-	vkFreeMemory(dev, vertex_buffer_memory, pAllocator);
+	vkDestroyCommandPool(dev, graphics_command_pool, pAllocator);
 
-	vkDestroyCommandPool(dev, command_pool, pAllocator);
 	for (auto framebuffer : framebuffers)
 		vkDestroyFramebuffer(dev, framebuffer, pAllocator);
 	vkDestroyPipeline(dev, graphics_pipeline, pAllocator);
@@ -121,15 +121,11 @@ void Renderer::init_swap_chain(const Device& device, const Window& window)
 	create_info.imageArrayLayers = 1;
 	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	uint32_t queue_family_indices[] = {
-		device.graphics_queue_family.index.value(),
-		device.present_queue_family.index.value()
-	};
-
-	if (queue_family_indices[0] != queue_family_indices[1]) {
+	auto queue_family_indices = device.get_unique_queue_family_indices();
+	if (queue_family_indices.size() > 0) {
 		create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-		create_info.queueFamilyIndexCount = 2;
-		create_info.pQueueFamilyIndices = queue_family_indices;
+		create_info.queueFamilyIndexCount = queue_family_indices.size();
+		create_info.pQueueFamilyIndices = queue_family_indices.data();
 	} else {
 		create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		create_info.queueFamilyIndexCount = 0;
@@ -410,25 +406,26 @@ void Renderer::init_framebuffers(const VkDevice& device)
 	}
 }
 
-void Renderer::init_command_buffers(const VkDevice& device, uint32_t graphics_queue_index)
+void Renderer::init_command_buffers(const Device& device)
 {
+	auto dev = device.logical_device;
 	VkCommandPoolCreateInfo pool_info {};
 	pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	pool_info.queueFamilyIndex = graphics_queue_index;
+	pool_info.queueFamilyIndex = device.graphics_queue_family.index.value();
 
-	if (vkCreateCommandPool(device, &pool_info, nullptr, &command_pool) != VK_SUCCESS)
+	if (vkCreateCommandPool(dev, &pool_info, nullptr, &graphics_command_pool) != VK_SUCCESS)
 		throw std::runtime_error("failed to create command pool");
 
 	command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
 
 	VkCommandBufferAllocateInfo alloc_info {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	alloc_info.commandPool = command_pool;
+	alloc_info.commandPool = graphics_command_pool;
 	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	alloc_info.commandBufferCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
-	if (vkAllocateCommandBuffers(device, &alloc_info, command_buffers.data()) != VK_SUCCESS)
+	if (vkAllocateCommandBuffers(dev, &alloc_info, command_buffers.data()) != VK_SUCCESS)
 		throw std::runtime_error("failed to allocate command buffer");
 }
 
@@ -457,64 +454,18 @@ void Renderer::init_sync_objects(const VkDevice& device)
 		throw std::runtime_error("failed to create synchronization objects");
 }
 
-void Renderer::init_vertex_buffer(const Device& device) {
-	VkBufferCreateInfo buffer_info{};
-	buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_info.size = sizeof(Vertex) * vertices.size();
-	buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	auto dev = device.logical_device;
-	if (vkCreateBuffer(dev, &buffer_info, nullptr, &vertex_buffer) != VK_SUCCESS)
-		throw std::runtime_error("failed to create vertex buffer");
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements(dev, vertex_buffer, &memory_requirements);
-	
-	auto find_memory_type = [device](
-			uint32_t type_filter,
-			VkMemoryPropertyFlags property_flags)
-	{
-		auto mem_props = device.memory_properties;
-		for (uint32_t i = 0; i < mem_props.memoryTypeCount; ++i) {
-			auto flags = mem_props.memoryTypes[i].propertyFlags;
-			if (type_filter & (1 << i)
-					&& (flags & property_flags) == property_flags)
-				return i;
-		}
-
-		throw std::runtime_error("failed to find suitable memory type");
-	};
-
-	auto mem_index = find_memory_type(
-			memory_requirements.memoryTypeBits,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-			| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-	VkMemoryAllocateInfo alloc_info{};
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.allocationSize = memory_requirements.size;
-	alloc_info.memoryTypeIndex = mem_index;
-
-	if (vkAllocateMemory(dev, &alloc_info, nullptr, &vertex_buffer_memory) != VK_SUCCESS)
-		throw std::runtime_error("failed to allocate vertex buffer memory");
-
-	vkBindBufferMemory(dev, vertex_buffer, vertex_buffer_memory, 0);
-
-	void* data;
-	vkMapMemory(dev, vertex_buffer_memory, 0, buffer_info.size, 0, &data);
-	memcpy(data, vertices.data(), (size_t)buffer_info.size);
-	vkUnmapMemory(dev, vertex_buffer_memory);
-}
-
-void Renderer::record_command_buffer(int buffer_index, int image_index)
+void Renderer::record_command_buffer(
+		VkCommandBuffer& command_buffer,
+		const VkBuffer& vertex_buffer,
+		const VkBuffer& index_buffer,
+		int image_index)
 {
 	VkCommandBufferBeginInfo begin_info {};
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	begin_info.flags = 0;
 	begin_info.pInheritanceInfo = nullptr;
 
-	if (vkBeginCommandBuffer(command_buffers[buffer_index], &begin_info) != VK_SUCCESS)
+	if (vkBeginCommandBuffer(command_buffer, &begin_info) != VK_SUCCESS)
 		throw std::runtime_error("failed to begin recording command buffer");
 
 	VkRenderPassBeginInfo render_pass_info {};
@@ -528,17 +479,13 @@ void Renderer::record_command_buffer(int buffer_index, int image_index)
 	render_pass_info.clearValueCount = 1;
 	render_pass_info.pClearValues = &clear_color;
 
-	vkCmdBeginRenderPass(command_buffers[buffer_index], &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(command_buffers[buffer_index], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+	vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
 
 	VkBuffer vertex_buffers[] = { vertex_buffer };
 	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(
-			command_buffers[buffer_index],
-			0,
-			1,
-			vertex_buffers,
-			offsets);
+	vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
+	vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 	VkViewport viewport {};
 	viewport.x = 0.0f;
@@ -547,17 +494,17 @@ void Renderer::record_command_buffer(int buffer_index, int image_index)
 	viewport.height = static_cast<float>(extent.height);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport(command_buffers[buffer_index], 0, 1, &viewport);
+	vkCmdSetViewport(command_buffer, 0, 1, &viewport);
 
 	VkRect2D scissor {};
 	scissor.offset = { 0, 0 };
 	scissor.extent = extent;
-	vkCmdSetScissor(command_buffers[buffer_index], 0, 1, &scissor);
+	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
-	vkCmdDraw(command_buffers[buffer_index], 3, 1, 0, 0);
-	vkCmdEndRenderPass(command_buffers[buffer_index]);
+	vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+	vkCmdEndRenderPass(command_buffer);
 
-	if (vkEndCommandBuffer(command_buffers[buffer_index]) != VK_SUCCESS)
+	if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
 		throw std::runtime_error("failed to record command buffer");
 }
 
@@ -587,7 +534,8 @@ void Renderer::recreate_swap_chain(Window& window, Device& device)
 
 void Renderer::draw(
 	Window& window,
-	Device& device)
+	Device& device,
+	const BufferData& buffers)
 {
 	vkWaitForFences(device.logical_device, 1, &in_flight_fences[current_frame], VK_TRUE, UINT64_MAX);
 
@@ -616,7 +564,11 @@ void Renderer::draw(
 	vkResetFences(device.logical_device, 1, &in_flight_fences[current_frame]);
 
 	vkResetCommandBuffer(command_buffers[current_frame], 0);
-	record_command_buffer(current_frame, image_index);
+	record_command_buffer(
+			command_buffers[current_frame],
+			buffers.vertex_buffer.buffer,
+			buffers.index_buffer.buffer,
+			image_index);
 
 	VkSubmitInfo submit_info {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

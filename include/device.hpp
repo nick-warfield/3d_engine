@@ -25,15 +25,18 @@ struct Device {
 	VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 	VkDevice logical_device = VK_NULL_HANDLE;
 
+	SwapChainSupportInfo supported_swap_chain_features;
 	VkPhysicalDeviceMemoryProperties memory_properties;
+
 	QueueFamily graphics_queue_family;
 	QueueFamily present_queue_family;
-	SwapChainSupportInfo supported_swap_chain_features;
+	QueueFamily transfer_queue_family;
 
 	void init(const VkInstance& instance, const VkSurfaceKHR& surface);
 	void deinit(const VkAllocationCallbacks* pAllocator = nullptr);
 
 	void update_swap_chain_support_info(const Window& window);
+	std::vector<uint32_t> get_unique_queue_family_indices() const;
 
 private:
 	bool supports_required_extensions();

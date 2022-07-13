@@ -1,6 +1,6 @@
 #include "device.hpp"
-#include "window.hpp"
 #include "constants.hpp"
+#include "window.hpp"
 
 #include <cstdint>
 #include <cstring>
@@ -8,6 +8,7 @@
 #include <set>
 #include <stdexcept>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace gfx {
 
@@ -40,20 +41,25 @@ void Device::init(const VkInstance& instance, const VkSurfaceKHR& surface)
 	supported_swap_chain_features = best_device.supported_swap_chain_features;
 	graphics_queue_family = best_device.graphics_queue_family;
 	present_queue_family = best_device.present_queue_family;
+	transfer_queue_family = best_device.transfer_queue_family;
 	init_logical_device();
 
-	// creating logical device also create queues for it automatically
-	// only used one queue, so only need 0 for index
-	vkGetDeviceQueue(
-		logical_device,
+	vkGetDeviceQueue(logical_device,
 		graphics_queue_family.index.value(),
 		0,
 		&graphics_queue_family.queue);
+
 	vkGetDeviceQueue(
 		logical_device,
 		present_queue_family.index.value(),
 		0,
 		&present_queue_family.queue);
+
+	vkGetDeviceQueue(
+		logical_device,
+		transfer_queue_family.index.value(),
+		0,
+		&transfer_queue_family.queue);
 
 	vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
 }
@@ -63,7 +69,8 @@ void Device::deinit(const VkAllocationCallbacks* pAllocator)
 	vkDestroyDevice(logical_device, pAllocator);
 }
 
-void Device::update_swap_chain_support_info(const Window& window) {
+void Device::update_swap_chain_support_info(const Window& window)
+{
 	populate_swap_chain_support_info(window.surface);
 }
 
@@ -89,6 +96,17 @@ bool Device::supports_required_extensions()
 		}
 	}
 	return true;
+}
+
+std::vector<uint32_t> Device::get_unique_queue_family_indices() const
+{
+	std::set<uint32_t> unique_queue_families = {
+		graphics_queue_family.index.value(),
+		present_queue_family.index.value(),
+		transfer_queue_family.index.value()
+	};
+
+	return std::vector<uint32_t>(unique_queue_families.begin(), unique_queue_families.end());
 }
 
 void Device::populate_swap_chain_support_info(
@@ -138,6 +156,10 @@ void Device::populate_queue_family_indices(
 		if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
 			graphics_queue_family.index = i;
 
+		if (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT
+			&& !(queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+			transfer_queue_family.index = i;
+
 		VkBool32 present_support = false;
 		vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &present_support);
 		if (present_support)
@@ -158,6 +180,7 @@ int Device::score_device()
 
 	bool has_required_features = graphics_queue_family.index.has_value()
 		&& present_queue_family.index.has_value()
+		&& transfer_queue_family.index.has_value()
 		&& !supported_swap_chain_features.formats.empty()
 		&& !supported_swap_chain_features.present_modes.empty()
 		&& dev_features.geometryShader;
@@ -171,6 +194,7 @@ void Device::init_logical_device()
 	std::set<uint32_t> unique_queue_families = {
 		graphics_queue_family.index.value(),
 		present_queue_family.index.value(),
+		transfer_queue_family.index.value()
 	};
 
 	float priority = 1.0f;
