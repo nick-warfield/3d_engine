@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 
 #include <vector>
+#include "texture.hpp"
 
 namespace gfx {
 
@@ -19,6 +20,7 @@ struct Renderer {
 	int current_frame = 0;
 	bool framebuffer_resized = false;
 
+	Image depth_image;
 	VkFormat format;
 	VkExtent2D extent;
 	VkSwapchainKHR swap_chain = VK_NULL_HANDLE;
@@ -57,7 +59,7 @@ struct Renderer {
 private:
 	void init_swap_chain(const Device& device, const Window& window);
 	void init_image_views(const VkDevice& device);
-	void init_render_pass(const VkDevice& device);
+	void init_render_pass(const Device& device);
 	void init_descriptor_sets(const VkDevice& device,
 		const std::vector<Buffer>& uniform_buffers,
 		const Texture& texture);
@@ -65,6 +67,7 @@ private:
 	void init_framebuffers(const VkDevice& device);
 	void init_command_buffers(const Device& device);
 	void init_sync_objects(const VkDevice& device);
+	void init_depth_image(const Device& device);
 
 	void record_command_buffer(
 		VkCommandBuffer& command_buffer,

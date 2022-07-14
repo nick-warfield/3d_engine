@@ -6,6 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
+#include <vector>
 
 #include "buffer.hpp"
 #include "device.hpp"
@@ -13,7 +14,80 @@
 
 namespace gfx {
 
+void Image::init(const Device& device, int width, int height, VkFormat format,
+	VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+	VkImageAspectFlags aspect_flags)
+{
+	VkImageCreateInfo image_info {};
+	image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	image_info.imageType = VK_IMAGE_TYPE_2D;
+	image_info.extent.width = static_cast<uint32_t>(width);
+	image_info.extent.height = static_cast<uint32_t>(height);
+	image_info.extent.depth = 1;
+	image_info.mipLevels = 1;
+	image_info.arrayLayers = 1;
+	image_info.format = format;
+	image_info.tiling = tiling;
+	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	image_info.usage = usage;
+	image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_info.flags = 0;
+
+	if (vkCreateImage(device.logical_device, &image_info, nullptr, &image) != VK_SUCCESS)
+		throw std::runtime_error("failed to create image");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetImageMemoryRequirements(device.logical_device, image, &memory_requirements);
+
+	VkMemoryAllocateInfo alloc_info {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	alloc_info.allocationSize = memory_requirements.size;
+	alloc_info.memoryTypeIndex = device.find_memory_type(
+		memory_requirements.memoryTypeBits,
+		properties);
+
+	if (vkAllocateMemory(device.logical_device, &alloc_info, nullptr, &image_memory) != VK_SUCCESS)
+		throw std::runtime_error("failed to allocate image memory");
+
+	vkBindImageMemory(device.logical_device, image, image_memory, 0);
+
+	VkImageViewCreateInfo view_info {};
+	view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	view_info.image = image;
+	view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	view_info.format = format;
+
+	view_info.subresourceRange.aspectMask = aspect_flags;
+	view_info.subresourceRange.baseMipLevel = 0;
+	view_info.subresourceRange.levelCount = 1;
+	view_info.subresourceRange.baseArrayLayer = 0;
+	view_info.subresourceRange.layerCount = 1;
+
+	if (vkCreateImageView(device.logical_device, &view_info, nullptr, &image_view) != VK_SUCCESS)
+		throw std::runtime_error("failed to create texture image view");
+}
+
+void Image::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator)
+{
+	vkDestroyImageView(device, image_view, pAllocator);
+	vkDestroyImage(device, image, pAllocator);
+	vkFreeMemory(device, image_memory, pAllocator);
+}
+
 void Texture::init(const Device& device)
+{
+	init_texture(device);
+	init_sampler(device);
+}
+
+void Texture::deinit(const Device& device, const VkAllocationCallbacks* pAllocator)
+{
+	vkDestroySampler(device.logical_device, sampler, pAllocator);
+	image.deinit(device.logical_device, pAllocator);
+}
+
+void Texture::init_texture(const Device& device)
 {
 	stbi_uc* pixels = stbi_load("resources/texture.jpg", &width, &height, &channels, STBI_rgb_alpha);
 	VkDeviceSize size = width * height * 4;
@@ -34,44 +108,19 @@ void Texture::init(const Device& device)
 	vkUnmapMemory(device.logical_device, staging_buffer.memory);
 
 	stbi_image_free(pixels);
-
-	VkImageCreateInfo image_info {};
-	image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	image_info.imageType = VK_IMAGE_TYPE_2D;
-	image_info.extent.width = static_cast<uint32_t>(width);
-	image_info.extent.height = static_cast<uint32_t>(height);
-	image_info.extent.depth = 1;
-	image_info.mipLevels = 1;
-	image_info.arrayLayers = 1;
-	image_info.format = VK_FORMAT_R8G8B8A8_SRGB;
-	image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	image_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-	image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-	image_info.flags = 0;
-
-	if (vkCreateImage(device.logical_device, &image_info, nullptr, &image) != VK_SUCCESS)
-		throw std::runtime_error("failed to create image");
-
-	VkMemoryRequirements memory_requirements;
-	vkGetImageMemoryRequirements(device.logical_device, image, &memory_requirements);
-
-	VkMemoryAllocateInfo alloc_info {};
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.allocationSize = memory_requirements.size;
-	alloc_info.memoryTypeIndex = device.find_memory_type(
-		memory_requirements.memoryTypeBits,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-	if (vkAllocateMemory(device.logical_device, &alloc_info, nullptr, &image_memory) != VK_SUCCESS)
-		throw std::runtime_error("failed to allocate image memory");
-
-	vkBindImageMemory(device.logical_device, image, image_memory, 0);
+	image.init(
+		device,
+		width,
+		height,
+		VK_FORMAT_R8G8B8A8_SRGB,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		VK_IMAGE_ASPECT_COLOR_BIT);
 
 	transition_image_layout(
 		device,
-		image,
+		image.image,
 		VK_FORMAT_R8G8B8A8_SRGB,
 		VK_IMAGE_LAYOUT_UNDEFINED,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -79,47 +128,18 @@ void Texture::init(const Device& device)
 	copy_buffer_to_image(
 		device,
 		staging_buffer.buffer,
-		image,
+		image.image,
 		static_cast<uint32_t>(width),
 		static_cast<uint32_t>(height));
 
 	transition_image_layout(
 		device,
-		image,
+		image.image,
 		VK_FORMAT_R8G8B8A8_SRGB,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-	init_texture_view(device);
-	init_sampler(device);
-
 	staging_buffer.deinit(device);
-}
-
-void Texture::deinit(const Device& device, const VkAllocationCallbacks* pAllocator)
-{
-	vkDestroySampler(device.logical_device, sampler, pAllocator);
-	vkDestroyImageView(device.logical_device, image_view, pAllocator);
-	vkDestroyImage(device.logical_device, image, pAllocator);
-	vkFreeMemory(device.logical_device, image_memory, pAllocator);
-}
-
-void Texture::init_texture_view(const Device& device)
-{
-	VkImageViewCreateInfo view_info {};
-	view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	view_info.image = image;
-	view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	view_info.format = VK_FORMAT_R8G8B8A8_SRGB;
-
-	view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	view_info.subresourceRange.baseMipLevel = 0;
-	view_info.subresourceRange.levelCount = 1;
-	view_info.subresourceRange.baseArrayLayer = 0;
-	view_info.subresourceRange.layerCount = 1;
-
-	if (vkCreateImageView(device.logical_device, &view_info, nullptr, &image_view) != VK_SUCCESS)
-		throw std::runtime_error("failed to create texture image view");
 }
 
 void Texture::init_sampler(const Device& device)
@@ -242,6 +262,28 @@ void copy_buffer_to_image(
 			1,
 			&region);
 	});
+}
+
+VkFormat find_supported_format(
+	const Device& device,
+	const std::vector<VkFormat>& candidates,
+	VkImageTiling tiling,
+	VkFormatFeatureFlags features)
+{
+	for (auto format : candidates) {
+		VkFormatProperties props;
+		vkGetPhysicalDeviceFormatProperties(device.physical_device, format, &props);
+
+		if (tiling == VK_IMAGE_TILING_LINEAR
+			&& (props.linearTilingFeatures & features) == features) {
+			return format;
+		} else if (tiling == VK_IMAGE_TILING_OPTIMAL
+			&& (props.optimalTilingFeatures & features) == features) {
+			return format;
+		}
+	}
+
+	throw std::runtime_error("failed to find supported format");
 }
 
 }
