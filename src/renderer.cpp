@@ -1,5 +1,7 @@
 #include "renderer.hpp"
+#include "constants.hpp"
 #include "device.hpp"
+#include "uniform_buffer_object.hpp"
 #include "vertex.hpp"
 #include "window.hpp"
 #include "buffer.hpp"
@@ -21,7 +23,10 @@ static void framebuffer_resize_callback(GLFWwindow* window, int width, int heigh
 	(void)height;
 }
 
-void Renderer::init(const Window& window, const Device& device)
+void Renderer::init(
+		const Window& window,
+		const Device& device,
+		const std::vector<Buffer>& uniform_buffers)
 {
 	glfwSetWindowUserPointer(window.glfw_window, &framebuffer_resized);
 	glfwSetFramebufferSizeCallback(window.glfw_window, framebuffer_resize_callback);
@@ -32,6 +37,7 @@ void Renderer::init(const Window& window, const Device& device)
 	init_image_views(dev);
 	init_render_pass(dev);
 	init_framebuffers(dev);
+	init_descriptor_sets(dev, uniform_buffers);
 	init_graphics_pipeline(dev);
 	init_command_buffers(device);
 	init_sync_objects(dev);
@@ -52,9 +58,14 @@ void Renderer::deinit(const Device& device, const VkAllocationCallbacks* pAlloca
 
 	for (auto framebuffer : framebuffers)
 		vkDestroyFramebuffer(dev, framebuffer, pAllocator);
+
 	vkDestroyPipeline(dev, graphics_pipeline, pAllocator);
-	vkDestroyPipelineLayout(dev, pipeline_layout, pAllocator);
 	vkDestroyRenderPass(dev, render_pass, pAllocator);
+	vkDestroyPipelineLayout(dev, pipeline_layout, pAllocator);
+
+	vkDestroyDescriptorPool(dev, descriptor_pool, pAllocator);
+	vkDestroyDescriptorSetLayout(dev, descriptor_set_layout, pAllocator);
+
 	for (auto view : swap_chain_image_views)
 		vkDestroyImageView(dev, view, pAllocator);
 	vkDestroySwapchainKHR(dev, swap_chain, pAllocator);
@@ -220,6 +231,79 @@ void Renderer::init_render_pass(const VkDevice& device)
 		throw std::runtime_error("failed to create render pass");
 }
 
+void Renderer::init_descriptor_sets(
+		const VkDevice& device,
+		const std::vector<Buffer>& uniform_buffers)
+{
+	// Create Descriptor Set Layout
+	VkDescriptorSetLayoutBinding ubo_layout_binding {};
+	ubo_layout_binding.binding = 0;
+	ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	ubo_layout_binding.descriptorCount = 1;
+	ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	ubo_layout_binding.pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutCreateInfo layout_info {};
+	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layout_info.bindingCount = 1;
+	layout_info.pBindings = &ubo_layout_binding;
+
+	if (vkCreateDescriptorSetLayout(
+				device,
+				&layout_info,
+				nullptr,
+				&descriptor_set_layout)
+			!= VK_SUCCESS)
+		throw std::runtime_error("failed to create descriptor set layout");
+
+	// Allocate Descriptor Pool
+	VkDescriptorPoolSize pool_size {};
+	pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	pool_size.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+	VkDescriptorPoolCreateInfo pool_info {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.poolSizeCount = 1;
+	pool_info.pPoolSizes = &pool_size;
+	pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+	if (vkCreateDescriptorPool(device, &pool_info, nullptr, &descriptor_pool) != VK_SUCCESS)
+		throw std::runtime_error("failed to create descriptor pool");
+
+	// Create Descriptor Sets
+	std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptor_set_layout);
+	VkDescriptorSetAllocateInfo alloc_info;
+	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	alloc_info.descriptorPool = descriptor_pool;
+	alloc_info.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	alloc_info.pSetLayouts = layouts.data();
+	alloc_info.pNext = nullptr;
+
+	descriptor_sets.resize(MAX_FRAMES_IN_FLIGHT);
+	if (vkAllocateDescriptorSets(device, &alloc_info, descriptor_sets.data()) != VK_SUCCESS)
+		throw std::runtime_error("failed to allocate descriptor sets");
+
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+		VkDescriptorBufferInfo buffer_info {};
+		buffer_info.buffer = uniform_buffers[i].buffer;
+		buffer_info.offset = 0;
+		buffer_info.range = sizeof(UniformBufferObject);
+
+		VkWriteDescriptorSet descriptor_write {};
+		descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptor_write.dstSet = descriptor_sets[i];
+		descriptor_write.dstBinding = 0;
+		descriptor_write.dstArrayElement = 0;
+		descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptor_write.descriptorCount = 1;
+		descriptor_write.pBufferInfo = &buffer_info;
+		descriptor_write.pImageInfo = nullptr;
+		descriptor_write.pTexelBufferView = nullptr;
+
+		vkUpdateDescriptorSets(device, 1, &descriptor_write, 0, nullptr);
+	}
+}
+
 void Renderer::init_graphics_pipeline(const VkDevice& device)
 {
 	auto read_file = [](const char* filename) {
@@ -310,7 +394,7 @@ void Renderer::init_graphics_pipeline(const VkDevice& device)
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
 	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizer.depthBiasEnable = VK_FALSE;
 	rasterizer.depthBiasConstantFactor = 0.0f;
 	rasterizer.depthBiasClamp = 0.0f;
@@ -351,8 +435,8 @@ void Renderer::init_graphics_pipeline(const VkDevice& device)
 
 	VkPipelineLayoutCreateInfo pipeline_layout_info {};
 	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount = 0;
-	pipeline_layout_info.pSetLayouts = nullptr;
+	pipeline_layout_info.setLayoutCount = 1;
+	pipeline_layout_info.pSetLayouts = &descriptor_set_layout;
 	pipeline_layout_info.pushConstantRangeCount = 0;
 	pipeline_layout_info.pPushConstantRanges = nullptr;
 
@@ -456,6 +540,7 @@ void Renderer::init_sync_objects(const VkDevice& device)
 
 void Renderer::record_command_buffer(
 		VkCommandBuffer& command_buffer,
+		const VkDescriptorSet& descriptor_set,
 		const VkBuffer& vertex_buffer,
 		const VkBuffer& index_buffer,
 		int image_index)
@@ -501,6 +586,16 @@ void Renderer::record_command_buffer(
 	scissor.extent = extent;
 	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
+	vkCmdBindDescriptorSets(
+			command_buffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			pipeline_layout,
+			0,
+			1,
+			&descriptor_set,
+			0,
+			nullptr);
+
 	vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 	vkCmdEndRenderPass(command_buffer);
 
@@ -535,7 +630,7 @@ void Renderer::recreate_swap_chain(Window& window, Device& device)
 void Renderer::draw(
 	Window& window,
 	Device& device,
-	const BufferData& buffers)
+	BufferData& buffers)
 {
 	vkWaitForFences(device.logical_device, 1, &in_flight_fences[current_frame], VK_TRUE, UINT64_MAX);
 
@@ -563,9 +658,11 @@ void Renderer::draw(
 
 	vkResetFences(device.logical_device, 1, &in_flight_fences[current_frame]);
 
+	buffers.update_uniform_buffer(device.logical_device, extent, current_frame);
 	vkResetCommandBuffer(command_buffers[current_frame], 0);
 	record_command_buffer(
 			command_buffers[current_frame],
+			descriptor_sets[current_frame],
 			buffers.vertex_buffer.buffer,
 			buffers.index_buffer.buffer,
 			image_index);

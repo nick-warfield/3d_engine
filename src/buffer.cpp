@@ -1,10 +1,21 @@
 #include "buffer.hpp"
 #include "constants.hpp"
 #include "device.hpp"
+#include "glm/ext/matrix_clip_space.hpp"
+#include "glm/trigonometric.hpp"
+#include "uniform_buffer_object.hpp"
 
+#include <iterator>
+#include <vulkan/vulkan_core.h>
+
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <chrono>
 #include <cstring>
 #include <stdexcept>
-#include <vulkan/vulkan_core.h>
+#include <cstring>
 
 namespace gfx {
 
@@ -117,12 +128,26 @@ void BufferData::init(const Device& device)
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	copy_buffer(device, staging_buffer.buffer, index_buffer.buffer, buffer_size);
+
+	// Create UBO buffers
+	buffer_size = sizeof(UniformBufferObject);
+	uniform_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+	for (auto& ubo : uniform_buffers) {
+		ubo.init(
+			device,
+			buffer_size,
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	}
 }
 
 void BufferData::deinit(const Device& device, const VkAllocationCallbacks* pAllocator)
 {
 	index_buffer.deinit(device, pAllocator);
 	vertex_buffer.deinit(device, pAllocator);
+	for (auto ubo : uniform_buffers)
+		ubo.deinit(device, pAllocator);
+
 	staging_buffer.deinit(device, pAllocator);
 	vkDestroyCommandPool(device.logical_device, copy_command_pool, pAllocator);
 }
@@ -155,7 +180,7 @@ void BufferData::copy_buffer(const Device& device,
 
 	vkEndCommandBuffer(command_buffer);
 
-	VkSubmitInfo submit_info{};
+	VkSubmitInfo submit_info {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &command_buffer;
@@ -165,6 +190,41 @@ void BufferData::copy_buffer(const Device& device,
 	vkQueueWaitIdle(queue);
 
 	vkFreeCommandBuffers(device.logical_device, copy_command_pool, 1, &command_buffer);
+}
+
+void BufferData::update_uniform_buffer(
+	const VkDevice& device,
+	VkExtent2D extent,
+	uint32_t current_image)
+{
+	static auto start_time = std::chrono::high_resolution_clock::now();
+
+	auto current_time = std::chrono::high_resolution_clock::now();
+	float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+
+	UniformBufferObject ubo {};
+	ubo.model = glm::rotate(
+		glm::mat4(1.0f),
+		time * glm::radians(90.0f),
+		glm::vec3(0.0f, 0.0f, 1.0f));
+
+	ubo.view = glm::lookAt(
+		glm::vec3(2.0f, 2.0f, 2.0f),
+		glm::vec3(0.0f, 0.0f, 0.0f),
+		glm::vec3(0.0f, 0.0f, 1.0f));
+
+	ubo.projection = glm::perspective(
+		glm::radians(45.0f),
+		((float)extent.width / (float)extent.height),
+		0.1f,
+		10.0f);
+	ubo.projection[1][1] *= -1;
+
+	void* data;
+	auto& memory = uniform_buffers[current_image].memory;
+	vkMapMemory(device, memory, 0, sizeof(ubo), 0, &data);
+	memcpy(data, &ubo, sizeof(ubo));
+	vkUnmapMemory(device, memory);
 }
 
 }

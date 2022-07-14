@@ -35,7 +35,7 @@ int main(int argc, char** argv)
 		window.init("Vulkan Project", WIDTH, HEIGHT);
 		device.init(window.instance, window.surface);
 		buffers.init(device);
-		renderer.init(window, device);
+		renderer.init(window, device, buffers.uniform_buffers);
 
 		// main loop
 		while (!glfwWindowShouldClose(window.glfw_window)) {
