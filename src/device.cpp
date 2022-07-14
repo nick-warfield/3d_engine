@@ -62,10 +62,23 @@ void Device::init(const VkInstance& instance, const VkSurfaceKHR& surface)
 		&transfer_queue_family.queue);
 
 	vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
+
+	VkCommandPoolCreateInfo pool_info {};
+	pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+	pool_info.queueFamilyIndex = transfer_queue_family.index.value();
+	if (vkCreateCommandPool(logical_device, &pool_info, nullptr, &temp_command_pool) != VK_SUCCESS)
+		throw std::runtime_error("failed to create command pool");
+
+	pool_info.queueFamilyIndex = graphics_queue_family.index.value();
+	if (vkCreateCommandPool(logical_device, &pool_info, nullptr, &graphics_command_pool) != VK_SUCCESS)
+		throw std::runtime_error("failed to create command pool");
 }
 
 void Device::deinit(const VkAllocationCallbacks* pAllocator)
 {
+	vkDestroyCommandPool(logical_device, temp_command_pool, pAllocator);
+	vkDestroyCommandPool(logical_device, graphics_command_pool, pAllocator);
 	vkDestroyDevice(logical_device, pAllocator);
 }
 
@@ -181,6 +194,7 @@ int Device::score_device()
 	bool has_required_features = graphics_queue_family.index.has_value()
 		&& present_queue_family.index.has_value()
 		&& transfer_queue_family.index.has_value()
+		&& dev_features.samplerAnisotropy
 		&& !supported_swap_chain_features.formats.empty()
 		&& !supported_swap_chain_features.present_modes.empty()
 		&& dev_features.geometryShader;
@@ -209,7 +223,7 @@ void Device::init_logical_device()
 	}
 
 	VkPhysicalDeviceFeatures device_features {};
-	// todo: finish this
+	device_features.samplerAnisotropy = VK_TRUE;
 
 	VkDeviceCreateInfo create_info {};
 	create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -228,6 +242,61 @@ void Device::init_logical_device()
 
 	if (vkCreateDevice(physical_device, &create_info, nullptr, &logical_device) != VK_SUCCESS)
 		throw std::runtime_error("failed to create logical device");
+}
+
+uint32_t Device::find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags property_flags) const
+{
+	auto mem_props = memory_properties;
+	for (uint32_t i = 0; i < mem_props.memoryTypeCount; ++i) {
+		auto flags = mem_props.memoryTypes[i].propertyFlags;
+		if (type_filter & (1 << i)
+			&& (flags & property_flags) == property_flags)
+			return i;
+	}
+	throw std::runtime_error("failed to find suitable memory type");
+}
+
+void Device::record_graphics_commands(std::function<void(VkCommandBuffer command_buffer)> commands) const
+{
+	record_commands(graphics_command_pool, graphics_queue_family.queue, commands);
+}
+
+void Device::record_transfer_commands(std::function<void(VkCommandBuffer command_buffer)> commands) const
+{
+	record_commands(temp_command_pool, transfer_queue_family.queue, commands);
+}
+
+void Device::record_commands(
+		VkCommandPool command_pool,
+		VkQueue queue,
+		std::function<void(VkCommandBuffer command_buffer)> commands) const
+{
+	VkCommandBufferAllocateInfo alloc_info {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	alloc_info.commandPool = command_pool;
+	alloc_info.commandBufferCount = 1;
+
+	VkCommandBuffer command_buffer;
+	vkAllocateCommandBuffers(logical_device, &alloc_info, &command_buffer);
+
+	VkCommandBufferBeginInfo begin_info {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(command_buffer, &begin_info);
+	commands(command_buffer);
+	vkEndCommandBuffer(command_buffer);
+
+	VkSubmitInfo submit_info {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &command_buffer;
+
+	vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+	vkQueueWaitIdle(queue);
+
+	vkFreeCommandBuffers(logical_device, command_pool, 1, &command_buffer);
 }
 
 }

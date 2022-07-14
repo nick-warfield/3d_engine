@@ -12,6 +12,7 @@
 #include "renderer.hpp"
 #include "buffer.hpp"
 #include "vertex.hpp"
+#include "texture.hpp"
 
 #include <vector>
 #include <array>
@@ -29,13 +30,15 @@ int main(int argc, char** argv)
 	Window window;
 	Device device;
 	BufferData buffers;
+	Texture texture;
 	Renderer renderer;
 
 	try {
 		window.init("Vulkan Project", WIDTH, HEIGHT);
 		device.init(window.instance, window.surface);
 		buffers.init(device);
-		renderer.init(window, device, buffers.uniform_buffers);
+		texture.init(device);
+		renderer.init(window, device, buffers.uniform_buffers, texture);
 
 		// main loop
 		while (!glfwWindowShouldClose(window.glfw_window)) {
@@ -46,6 +49,7 @@ int main(int argc, char** argv)
 
 		// cleanup, reverse order of initiliztion
 		renderer.deinit(device);
+		texture.deinit(device);
 		buffers.deinit(device);
 		device.deinit();
 		window.deinit();

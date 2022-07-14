@@ -1,21 +1,19 @@
 #include "buffer.hpp"
 #include "constants.hpp"
 #include "device.hpp"
-#include "glm/ext/matrix_clip_space.hpp"
-#include "glm/trigonometric.hpp"
 #include "uniform_buffer_object.hpp"
 
-#include <iterator>
 #include <vulkan/vulkan_core.h>
 
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/trigonometric.hpp>
 
 #include <chrono>
 #include <cstring>
 #include <stdexcept>
-#include <cstring>
 
 namespace gfx {
 
@@ -47,21 +45,7 @@ void Buffer::init(const Device& device,
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements(dev, buffer, &memory_requirements);
 
-	auto find_memory_type = [device](
-								uint32_t type_filter,
-								VkMemoryPropertyFlags property_flags) {
-		auto mem_props = device.memory_properties;
-		for (uint32_t i = 0; i < mem_props.memoryTypeCount; ++i) {
-			auto flags = mem_props.memoryTypes[i].propertyFlags;
-			if (type_filter & (1 << i)
-				&& (flags & property_flags) == property_flags)
-				return i;
-		}
-
-		throw std::runtime_error("failed to find suitable memory type");
-	};
-
-	auto mem_index = find_memory_type(
+	auto mem_index = device.find_memory_type(
 		memory_requirements.memoryTypeBits,
 		properties);
 
@@ -84,15 +68,9 @@ void Buffer::deinit(const Device& device, const VkAllocationCallbacks* pAllocato
 
 void BufferData::init(const Device& device)
 {
-	VkCommandPoolCreateInfo pool_info {};
-	pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-	pool_info.queueFamilyIndex = device.transfer_queue_family.index.value();
-	if (vkCreateCommandPool(device.logical_device, &pool_info, nullptr, &copy_command_pool) != VK_SUCCESS)
-		throw std::runtime_error("failed to create command pool");
-
 	// Create Vertex Buffer
 	VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
+	Buffer staging_buffer {};
 	staging_buffer.init(device,
 		buffer_size,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -139,6 +117,8 @@ void BufferData::init(const Device& device)
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	}
+
+	staging_buffer.deinit(device);
 }
 
 void BufferData::deinit(const Device& device, const VkAllocationCallbacks* pAllocator)
@@ -147,9 +127,6 @@ void BufferData::deinit(const Device& device, const VkAllocationCallbacks* pAllo
 	vertex_buffer.deinit(device, pAllocator);
 	for (auto ubo : uniform_buffers)
 		ubo.deinit(device, pAllocator);
-
-	staging_buffer.deinit(device, pAllocator);
-	vkDestroyCommandPool(device.logical_device, copy_command_pool, pAllocator);
 }
 
 void BufferData::copy_buffer(const Device& device,
@@ -157,39 +134,13 @@ void BufferData::copy_buffer(const Device& device,
 	VkBuffer dst_buffer,
 	VkDeviceSize size)
 {
-	VkCommandBufferAllocateInfo alloc_info {};
-	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	alloc_info.commandPool = copy_command_pool;
-	alloc_info.commandBufferCount = 1;
-
-	VkCommandBuffer command_buffer;
-	vkAllocateCommandBuffers(device.logical_device, &alloc_info, &command_buffer);
-
-	VkCommandBufferBeginInfo begin_info {};
-	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(command_buffer, &begin_info);
-
-	VkBufferCopy copy_region {};
-	copy_region.srcOffset = 0;
-	copy_region.dstOffset = 0;
-	copy_region.size = size;
-	vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
-
-	vkEndCommandBuffer(command_buffer);
-
-	VkSubmitInfo submit_info {};
-	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &command_buffer;
-
-	auto queue = device.transfer_queue_family.queue;
-	vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
-	vkQueueWaitIdle(queue);
-
-	vkFreeCommandBuffers(device.logical_device, copy_command_pool, 1, &command_buffer);
+	device.record_transfer_commands([size, src_buffer, dst_buffer](VkCommandBuffer command_buffer) {
+		VkBufferCopy copy_region {};
+		copy_region.srcOffset = 0;
+		copy_region.dstOffset = 0;
+		copy_region.size = size;
+		vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
+	});
 }
 
 void BufferData::update_uniform_buffer(

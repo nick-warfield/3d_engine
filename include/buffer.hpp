@@ -23,9 +23,6 @@ struct BufferData {
 	Buffer vertex_buffer;
 	std::vector<Buffer> uniform_buffers;
 
-	Buffer staging_buffer;
-	VkCommandPool copy_command_pool;
-
 	void init(const Device& device);
 	void deinit(const Device& device, const VkAllocationCallbacks* = nullptr);
 	void update_uniform_buffer(

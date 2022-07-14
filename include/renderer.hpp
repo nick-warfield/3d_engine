@@ -12,6 +12,7 @@ struct Window;
 struct Device;
 struct Buffer;
 struct BufferData;
+struct Texture;
 
 struct Renderer {
 	int width, height;
@@ -22,8 +23,10 @@ struct Renderer {
 	VkExtent2D extent;
 	VkSwapchainKHR swap_chain = VK_NULL_HANDLE;
 
+	// I think i should move these to device and mirror the record_command() pattern
+	// eg: Device::record_draw_commands(int current_frame, function<void(command_buffer)>)
+	// I can use std::bind_right() to keep the draw commands in a function here
 	VkCommandPool graphics_command_pool = VK_NULL_HANDLE;
-	VkCommandPool transfer_command_pool = VK_NULL_HANDLE;
 	std::vector<VkCommandBuffer> command_buffers;
 
 	// These are all associated
@@ -45,7 +48,8 @@ struct Renderer {
 
 	void init(const Window& window,
 		const Device& device,
-		const std::vector<Buffer>& uniform_buffers);
+		const std::vector<Buffer>& uniform_buffers,
+		const Texture& texture);
 
 	void deinit(const Device& device, const VkAllocationCallbacks* pAllocator = nullptr);
 	void draw(Window& window, Device& device, BufferData& buffers);
@@ -55,7 +59,8 @@ private:
 	void init_image_views(const VkDevice& device);
 	void init_render_pass(const VkDevice& device);
 	void init_descriptor_sets(const VkDevice& device,
-		const std::vector<Buffer>& uniform_buffers);
+		const std::vector<Buffer>& uniform_buffers,
+		const Texture& texture);
 	void init_graphics_pipeline(const VkDevice& device);
 	void init_framebuffers(const VkDevice& device);
 	void init_command_buffers(const Device& device);

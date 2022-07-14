@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <optional>
 #include <vector>
+#include <functional>
 
 namespace gfx {
 
@@ -37,6 +38,9 @@ struct Device {
 
 	void update_swap_chain_support_info(const Window& window);
 	std::vector<uint32_t> get_unique_queue_family_indices() const;
+	uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags property_flags) const;
+	void record_graphics_commands(std::function<void(VkCommandBuffer)> commands) const;
+	void record_transfer_commands(std::function<void(VkCommandBuffer)> commands) const;
 
 private:
 	bool supports_required_extensions();
@@ -44,6 +48,13 @@ private:
 	void populate_queue_family_indices(const VkSurfaceKHR& surface);
 	int score_device();
 	void init_logical_device();
+
+	void record_commands(
+			VkCommandPool command_pool,
+			VkQueue queue,
+			std::function<void(VkCommandBuffer command_buffer)> commands) const;
+	VkCommandPool temp_command_pool;
+	VkCommandPool graphics_command_pool;
 };
 
 }
