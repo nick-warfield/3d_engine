@@ -29,6 +29,7 @@ void Device::init(const VkInstance& instance, const VkSurfaceKHR& surface)
 		dev.physical_device = physical_devices[i];
 		dev.populate_swap_chain_support_info(surface);
 		dev.populate_queue_family_indices(surface);
+		dev.set_max_usable_sample_count();
 		candidates[dev.score_device()] = dev;
 	}
 
@@ -42,6 +43,7 @@ void Device::init(const VkInstance& instance, const VkSurfaceKHR& surface)
 	graphics_queue_family = best_device.graphics_queue_family;
 	present_queue_family = best_device.present_queue_family;
 	transfer_queue_family = best_device.transfer_queue_family;
+	msaa_samples = best_device.msaa_samples;
 	init_logical_device();
 
 	vkGetDeviceQueue(logical_device,
@@ -297,6 +299,23 @@ void Device::record_commands(
 	vkQueueWaitIdle(queue);
 
 	vkFreeCommandBuffers(logical_device, command_pool, 1, &command_buffer);
+}
+
+void Device::set_max_usable_sample_count() {
+	VkPhysicalDeviceProperties props;
+	vkGetPhysicalDeviceProperties(physical_device, &props);
+
+	VkSampleCountFlags counts =
+		props.limits.framebufferColorSampleCounts
+		& props.limits.framebufferDepthSampleCounts;
+
+	if (counts >= VK_SAMPLE_COUNT_64_BIT) { msaa_samples = VK_SAMPLE_COUNT_64_BIT; }
+	else if (counts >= VK_SAMPLE_COUNT_32_BIT) { msaa_samples = VK_SAMPLE_COUNT_32_BIT; }
+	else if (counts >= VK_SAMPLE_COUNT_16_BIT) { msaa_samples = VK_SAMPLE_COUNT_16_BIT; }
+	else if (counts >= VK_SAMPLE_COUNT_8_BIT ) { msaa_samples = VK_SAMPLE_COUNT_8_BIT;  }
+	else if (counts >= VK_SAMPLE_COUNT_4_BIT ) { msaa_samples = VK_SAMPLE_COUNT_4_BIT;  }
+	else if (counts >= VK_SAMPLE_COUNT_2_BIT ) { msaa_samples = VK_SAMPLE_COUNT_2_BIT;  }
+	else { msaa_samples = VK_SAMPLE_COUNT_1_BIT; }
 }
 
 }

@@ -28,6 +28,7 @@ struct Device {
 
 	SwapChainSupportInfo supported_swap_chain_features;
 	VkPhysicalDeviceMemoryProperties memory_properties;
+	VkSampleCountFlagBits msaa_samples = VK_SAMPLE_COUNT_1_BIT;
 
 	QueueFamily graphics_queue_family;
 	QueueFamily present_queue_family;
@@ -46,6 +47,7 @@ private:
 	bool supports_required_extensions();
 	void populate_swap_chain_support_info(const VkSurfaceKHR& surface);
 	void populate_queue_family_indices(const VkSurfaceKHR& surface);
+	void set_max_usable_sample_count();
 	int score_device();
 	void init_logical_device();
 

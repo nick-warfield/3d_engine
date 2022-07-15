@@ -12,9 +12,9 @@ struct Image {
 	VkImageView image_view;
 	VkDeviceMemory image_memory;
 
-	void init(const Device &device, int width, int height, VkFormat format,
-			VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-			VkImageAspectFlags aspect_flags);
+	void init(const Device &device, int width, int height, VkSampleCountFlagBits samples,
+			VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+			VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags);
 	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
 };
 

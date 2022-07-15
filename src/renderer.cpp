@@ -40,9 +40,10 @@ void Renderer::init(
 	init_image_views(dev);
 	init_render_pass(device);
 	init_depth_image(device);
+	init_msaa_image(device);
 	init_framebuffers(dev);
 	init_descriptor_sets(dev, uniform_buffers, texture);
-	init_graphics_pipeline(dev);
+	init_graphics_pipeline(device);
 	init_command_buffers(device);
 	init_sync_objects(dev);
 }
@@ -51,7 +52,6 @@ void Renderer::deinit(const Device& device, const VkAllocationCallbacks* pAlloca
 {
 	auto dev = device.logical_device;
 
-	depth_image.deinit(dev, pAllocator);
 	for (auto& semaphore : image_available_semaphores)
 		vkDestroySemaphore(dev, semaphore, pAllocator);
 	for (auto& semaphore : render_finished_semaphores)
@@ -60,6 +60,8 @@ void Renderer::deinit(const Device& device, const VkAllocationCallbacks* pAlloca
 		vkDestroyFence(dev, fence, pAllocator);
 
 	vkDestroyCommandPool(dev, graphics_command_pool, pAllocator);
+	depth_image.deinit(dev, pAllocator);
+	msaa_image.deinit(dev, pAllocator);
 
 	for (auto framebuffer : framebuffers)
 		vkDestroyFramebuffer(dev, framebuffer, pAllocator);
@@ -206,6 +208,7 @@ void Renderer::init_depth_image(const Device& device)
 		device,
 		extent.width,
 		extent.height,
+		device.msaa_samples,
 		depth_format,
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
@@ -213,21 +216,49 @@ void Renderer::init_depth_image(const Device& device)
 		VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
+void Renderer::init_msaa_image(const Device& device)
+{
+	msaa_image.init(
+		device,
+		extent.width,
+		extent.height,
+		device.msaa_samples,
+		format,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		VK_IMAGE_ASPECT_COLOR_BIT);
+}
+
 void Renderer::init_render_pass(const Device& device)
 {
 	VkAttachmentDescription color_attachment {};
 	color_attachment.format = format;
-	color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	color_attachment.samples = device.msaa_samples;
 	color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	color_attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference color_attachment_ref {};
 	color_attachment_ref.attachment = 0;
 	color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentDescription color_attachment_resolve {};
+	color_attachment_resolve.format = format;
+	color_attachment_resolve.samples = VK_SAMPLE_COUNT_1_BIT;
+	color_attachment_resolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	color_attachment_resolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	color_attachment_resolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	color_attachment_resolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	color_attachment_resolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	color_attachment_resolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	VkAttachmentReference color_attachment_resolve_ref {};
+	color_attachment_resolve_ref.attachment = 2;
+	color_attachment_resolve_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentDescription depth_attachment {};
 	depth_attachment.format = find_supported_format(
@@ -235,7 +266,7 @@ void Renderer::init_render_pass(const Device& device)
 		{ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-	depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	depth_attachment.samples = device.msaa_samples;
 	depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -252,6 +283,7 @@ void Renderer::init_render_pass(const Device& device)
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &color_attachment_ref;
 	subpass.pDepthStencilAttachment = &depth_attachment_ref;
+	subpass.pResolveAttachments = &color_attachment_resolve_ref;
 
 	VkSubpassDependency dependency {};
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -264,7 +296,11 @@ void Renderer::init_render_pass(const Device& device)
 	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
 		| VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-	std::array<VkAttachmentDescription, 2> attachments = { color_attachment, depth_attachment };
+	std::array<VkAttachmentDescription, 3> attachments = {
+		color_attachment,
+		depth_attachment,
+		color_attachment_resolve
+	};
 	VkRenderPassCreateInfo create_info {};
 	create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	create_info.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -382,7 +418,7 @@ void Renderer::init_descriptor_sets(
 	}
 }
 
-void Renderer::init_graphics_pipeline(const VkDevice& device)
+void Renderer::init_graphics_pipeline(const Device& device)
 {
 	auto read_file = [](const char* filename) {
 		std::ifstream file((Root::path / filename).string(), std::ios::ate | std::ios::binary);
@@ -415,8 +451,8 @@ void Renderer::init_graphics_pipeline(const VkDevice& device)
 		return shader_module;
 	};
 
-	auto vert_shader_mod = create_shader_module(device, vert_shader_file);
-	auto frag_shader_mod = create_shader_module(device, frag_shader_file);
+	auto vert_shader_mod = create_shader_module(device.logical_device, vert_shader_file);
+	auto frag_shader_mod = create_shader_module(device.logical_device, frag_shader_file);
 
 	VkPipelineShaderStageCreateInfo vert_shader_stage_info {};
 	vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -481,7 +517,7 @@ void Renderer::init_graphics_pipeline(const VkDevice& device)
 	VkPipelineMultisampleStateCreateInfo multisampling {};
 	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampling.sampleShadingEnable = VK_FALSE;
-	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampling.rasterizationSamples = device.msaa_samples;
 	//	multisampling.minSampleShading = 1.0f;
 	//	multisampling.pSampleMask = nullptr;
 	//	multisampling.alphaToCoverageEnable = VK_FALSE;
@@ -530,7 +566,7 @@ void Renderer::init_graphics_pipeline(const VkDevice& device)
 	pipeline_layout_info.pushConstantRangeCount = 0;
 	pipeline_layout_info.pPushConstantRanges = nullptr;
 
-	if (vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
+	if (vkCreatePipelineLayout(device.logical_device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
 		throw std::runtime_error("failed to create pipeline layout");
 
 	VkGraphicsPipelineCreateInfo pipeline_info {};
@@ -550,12 +586,12 @@ void Renderer::init_graphics_pipeline(const VkDevice& device)
 	pipeline_info.subpass = 0;
 	pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
 
-	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &graphics_pipeline)
+	if (vkCreateGraphicsPipelines(device.logical_device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &graphics_pipeline)
 		!= VK_SUCCESS)
 		throw std::runtime_error("failed to create graphics pipeline");
 
-	vkDestroyShaderModule(device, vert_shader_mod, nullptr);
-	vkDestroyShaderModule(device, frag_shader_mod, nullptr);
+	vkDestroyShaderModule(device.logical_device, vert_shader_mod, nullptr);
+	vkDestroyShaderModule(device.logical_device, frag_shader_mod, nullptr);
 }
 
 void Renderer::init_framebuffers(const VkDevice& device)
@@ -563,9 +599,10 @@ void Renderer::init_framebuffers(const VkDevice& device)
 	framebuffers.resize(swap_chain_image_views.size());
 
 	for (size_t i = 0; i < swap_chain_image_views.size(); i++) {
-		std::array<VkImageView, 2> attachments = {
-			swap_chain_image_views[i],
-			depth_image.image_view
+		std::array<VkImageView, 3> attachments = {
+			msaa_image.image_view,
+			depth_image.image_view,
+			swap_chain_image_views[i]
 		};
 
 		VkFramebufferCreateInfo framebuffer_info {};
@@ -712,6 +749,7 @@ void Renderer::recreate_swap_chain(Window& window, Device& device)
 
 	// Need to cleanup old stuff first
 	depth_image.deinit(device.logical_device, nullptr);
+	msaa_image.deinit(device.logical_device, nullptr);
 	for (auto& framebuffer : framebuffers)
 		vkDestroyFramebuffer(device.logical_device, framebuffer, nullptr);
 	for (auto& iv : swap_chain_image_views)

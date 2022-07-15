@@ -14,9 +14,9 @@
 
 namespace gfx {
 
-void Image::init(const Device& device, int width, int height, VkFormat format,
-	VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-	VkImageAspectFlags aspect_flags)
+void Image::init(const Device& device, int width, int height, VkSampleCountFlagBits samples,
+		VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+		VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags)
 {
 	VkImageCreateInfo image_info {};
 	image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -31,7 +31,7 @@ void Image::init(const Device& device, int width, int height, VkFormat format,
 	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	image_info.usage = usage;
 	image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_info.samples = samples;
 	image_info.flags = 0;
 
 	if (vkCreateImage(device.logical_device, &image_info, nullptr, &image) != VK_SUCCESS)
@@ -112,6 +112,7 @@ void Texture::init_texture(const Device& device)
 		device,
 		width,
 		height,
+		VK_SAMPLE_COUNT_1_BIT,
 		VK_FORMAT_R8G8B8A8_SRGB,
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,

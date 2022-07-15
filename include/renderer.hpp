@@ -21,6 +21,8 @@ struct Renderer {
 	bool framebuffer_resized = false;
 
 	Image depth_image;
+	Image msaa_image;
+
 	VkFormat format;
 	VkExtent2D extent;
 	VkSwapchainKHR swap_chain = VK_NULL_HANDLE;
@@ -63,11 +65,12 @@ private:
 	void init_descriptor_sets(const VkDevice& device,
 		const std::vector<Buffer>& uniform_buffers,
 		const Texture& texture);
-	void init_graphics_pipeline(const VkDevice& device);
+	void init_graphics_pipeline(const Device& device);
 	void init_framebuffers(const VkDevice& device);
 	void init_command_buffers(const Device& device);
 	void init_sync_objects(const VkDevice& device);
 	void init_depth_image(const Device& device);
+	void init_msaa_image(const Device& device);
 
 	void record_command_buffer(
 		VkCommandBuffer& command_buffer,
