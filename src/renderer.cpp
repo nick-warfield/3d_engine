@@ -516,9 +516,9 @@ void Renderer::init_graphics_pipeline(const Device& device)
 
 	VkPipelineMultisampleStateCreateInfo multisampling {};
 	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampling.sampleShadingEnable = VK_FALSE;
+	multisampling.sampleShadingEnable = VK_TRUE;
 	multisampling.rasterizationSamples = device.msaa_samples;
-	//	multisampling.minSampleShading = 1.0f;
+	multisampling.minSampleShading = 0.2f;
 	//	multisampling.pSampleMask = nullptr;
 	//	multisampling.alphaToCoverageEnable = VK_FALSE;
 	//	multisampling.alphaToOneEnable = VK_FALSE;

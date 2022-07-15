@@ -33,8 +33,8 @@ const std::vector<uint16_t> indices = {
 	1, 4, 7, 7, 5, 1	// right side
 };
 
-const uint32_t WIDTH = 800;
-const uint32_t HEIGHT = 600;
+const uint32_t WIDTH = 1920;
+const uint32_t HEIGHT = 1080;
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
 #ifdef DEBUG
