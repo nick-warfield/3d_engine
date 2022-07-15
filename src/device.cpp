@@ -180,6 +180,9 @@ void Device::populate_queue_family_indices(
 		if (present_support)
 			present_queue_family.index = i;
 	}
+
+	if (!transfer_queue_family.index.has_value())
+		transfer_queue_family.index = graphics_queue_family.index;
 }
 
 int Device::score_device()

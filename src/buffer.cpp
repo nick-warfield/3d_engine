@@ -28,7 +28,7 @@ void Buffer::init(const Device& device,
 	buffer_info.usage = usage;
 
 	auto queue_family_indices = device.get_unique_queue_family_indices();
-	if (queue_family_indices.size() > 0) {
+	if (queue_family_indices.size() > 1) {
 		buffer_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
 		buffer_info.queueFamilyIndexCount = queue_family_indices.size();
 		buffer_info.pQueueFamilyIndices = queue_family_indices.data();

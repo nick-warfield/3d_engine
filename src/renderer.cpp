@@ -140,7 +140,7 @@ void Renderer::init_swap_chain(const Device& device, const Window& window)
 	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 	auto queue_family_indices = device.get_unique_queue_family_indices();
-	if (queue_family_indices.size() > 0) {
+	if (queue_family_indices.size() > 1) {
 		create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 		create_info.queueFamilyIndexCount = queue_family_indices.size();
 		create_info.pQueueFamilyIndices = queue_family_indices.data();
