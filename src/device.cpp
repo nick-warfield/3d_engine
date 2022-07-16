@@ -183,6 +183,16 @@ void Device::populate_queue_family_indices(
 
 	if (!transfer_queue_family.index.has_value())
 		transfer_queue_family.index = graphics_queue_family.index;
+
+	// prefer graphics and present queue being the same queue
+	VkBool32 present_support = false;
+	vkGetPhysicalDeviceSurfaceSupportKHR(
+			physical_device,
+			graphics_queue_family.index.value(),
+			surface,
+			&present_support);
+	if (present_support)
+		present_queue_family.index = graphics_queue_family.index.value();
 }
 
 int Device::score_device()

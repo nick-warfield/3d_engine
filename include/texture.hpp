@@ -12,14 +12,18 @@ struct Image {
 	VkImageView image_view;
 	VkDeviceMemory image_memory;
 
-	void init(const Device &device, int width, int height, VkSampleCountFlagBits samples,
-			VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-			VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags);
+	void init(const Device& device, uint32_t width, uint32_t height, uint32_t mip_levels,
+			VkSampleCountFlagBits samples, VkFormat format, VkImageTiling tiling,
+			VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+			VkImageAspectFlags aspect_flags);
 	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
 };
 
 struct Texture {
-	int width, height, channels;
+	uint32_t width, height;
+	uint32_t channels;
+	uint32_t mip_levels;
+
 	VkSampler sampler;
 	Image image;
 
@@ -34,6 +38,7 @@ private:
 void transition_image_layout(
 	const Device& device,
 	VkImage image,
+	uint32_t mip_levels,
 	VkFormat format,
 	VkImageLayout old_layout,
 	VkImageLayout new_layout);
@@ -50,4 +55,13 @@ VkFormat find_supported_format(
 	const std::vector<VkFormat>& candidates,
 	VkImageTiling tiling,
 	VkFormatFeatureFlags features);
+
+void generate_mipmaps(
+	const Device& device,
+	VkImage image,
+	VkFormat format,
+	int32_t width,
+	int32_t height,
+	uint32_t mip_levels);
+
 }

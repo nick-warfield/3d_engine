@@ -209,6 +209,7 @@ void Renderer::init_depth_image(const Device& device)
 		device,
 		extent.width,
 		extent.height,
+		1,
 		device.msaa_samples,
 		depth_format,
 		VK_IMAGE_TILING_OPTIMAL,
@@ -223,6 +224,7 @@ void Renderer::init_msaa_image(const Device& device)
 		device,
 		extent.width,
 		extent.height,
+		1,
 		device.msaa_samples,
 		format,
 		VK_IMAGE_TILING_OPTIMAL,
@@ -839,7 +841,7 @@ void Renderer::draw(
 	// need to figure out why setting pNext got vkQueuePresentKHR to work
 	present_info.pNext = nullptr;
 
-	result = vkQueuePresentKHR(device.graphics_queue_family.queue, &present_info);
+	result = vkQueuePresentKHR(device.present_queue_family.queue, &present_info);
 
 	switch (result) {
 	case VK_SUCCESS:
