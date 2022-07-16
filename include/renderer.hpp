@@ -14,6 +14,7 @@ struct Device;
 struct Buffer;
 struct BufferData;
 struct Texture;
+struct Mesh;
 
 struct Renderer {
 	int width, height;
@@ -56,7 +57,7 @@ struct Renderer {
 		const Texture& texture);
 
 	void deinit(const Device& device, const VkAllocationCallbacks* pAllocator = nullptr);
-	void draw(Window& window, Device& device, BufferData& buffers);
+	void draw(Window& window, Device& device, Mesh& mesh);
 
 private:
 	void init_swap_chain(const Device& device, const Window& window);
@@ -75,8 +76,7 @@ private:
 	void record_command_buffer(
 		VkCommandBuffer& command_buffer,
 		const VkDescriptorSet& descriptor_set,
-		const VkBuffer& vertex_buffer,
-		const VkBuffer& index_buffer,
+		const Mesh& mesh,
 		int image_index);
 	void recreate_swap_chain(Window&, Device&);
 };

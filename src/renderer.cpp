@@ -6,6 +6,7 @@
 #include "uniform_buffer_object.hpp"
 #include "vertex.hpp"
 #include "window.hpp"
+#include "mesh.hpp"
 
 #include <array>
 #include <vulkan/vulkan_core.h>
@@ -671,8 +672,7 @@ void Renderer::init_sync_objects(const VkDevice& device)
 void Renderer::record_command_buffer(
 	VkCommandBuffer& command_buffer,
 	const VkDescriptorSet& descriptor_set,
-	const VkBuffer& vertex_buffer,
-	const VkBuffer& index_buffer,
+	const Mesh& mesh,
 	int image_index)
 {
 	VkCommandBufferBeginInfo begin_info {};
@@ -700,10 +700,10 @@ void Renderer::record_command_buffer(
 	vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
 
-	VkBuffer vertex_buffers[] = { vertex_buffer };
+	VkBuffer vertex_buffers[] = { mesh.vertex_buffer.buffer };
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
-	vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT16);
+	vkCmdBindIndexBuffer(command_buffer, mesh.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
 	VkViewport viewport {};
 	viewport.x = 0.0f;
@@ -729,7 +729,7 @@ void Renderer::record_command_buffer(
 		0,
 		nullptr);
 
-	vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+	vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(mesh.indices.size()), 1, 0, 0, 0);
 	vkCmdEndRenderPass(command_buffer);
 
 	if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
@@ -766,7 +766,7 @@ void Renderer::recreate_swap_chain(Window& window, Device& device)
 void Renderer::draw(
 	Window& window,
 	Device& device,
-	BufferData& buffers)
+	Mesh& mesh)
 {
 	vkWaitForFences(device.logical_device, 1, &in_flight_fences[current_frame], VK_TRUE, UINT64_MAX);
 
@@ -794,13 +794,12 @@ void Renderer::draw(
 
 	vkResetFences(device.logical_device, 1, &in_flight_fences[current_frame]);
 
-	buffers.update_uniform_buffer(device.logical_device, extent, current_frame);
+	mesh.update_uniform_buffer(device.logical_device, extent, current_frame);
 	vkResetCommandBuffer(command_buffers[current_frame], 0);
 	record_command_buffer(
 		command_buffers[current_frame],
 		descriptor_sets[current_frame],
-		buffers.vertex_buffer.buffer,
-		buffers.index_buffer.buffer,
+		mesh,
 		image_index);
 
 	VkSubmitInfo submit_info {};

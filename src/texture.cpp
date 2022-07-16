@@ -11,6 +11,7 @@
 #include "buffer.hpp"
 #include "device.hpp"
 #include "texture.hpp"
+#include "constants.hpp"
 
 namespace gfx {
 
@@ -89,7 +90,12 @@ void Texture::deinit(const Device& device, const VkAllocationCallbacks* pAllocat
 
 void Texture::init_texture(const Device& device)
 {
-	stbi_uc* pixels = stbi_load("resources/texture.jpg", &width, &height, &channels, STBI_rgb_alpha);
+	stbi_uc* pixels = stbi_load(
+			(Root::path / TEXTURE_PATH).c_str(),
+			&width,
+			&height,
+			&channels,
+			STBI_rgb_alpha);
 	VkDeviceSize size = width * height * 4;
 
 	if (!pixels)

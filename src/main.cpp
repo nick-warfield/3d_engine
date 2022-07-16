@@ -13,6 +13,7 @@
 #include "buffer.hpp"
 #include "vertex.hpp"
 #include "texture.hpp"
+#include "mesh.hpp"
 
 #include <vector>
 #include <array>
@@ -29,28 +30,28 @@ int main(int argc, char** argv)
 
 	Window window;
 	Device device;
-	BufferData buffers;
+	Mesh mesh;
 	Texture texture;
 	Renderer renderer;
 
 	try {
 		window.init("Vulkan Project", WIDTH, HEIGHT);
 		device.init(window.instance, window.surface);
-		buffers.init(device);
+		mesh.init(device);
 		texture.init(device);
-		renderer.init(window, device, buffers.uniform_buffers, texture);
+		renderer.init(window, device, mesh.uniform_buffers, texture);
 
 		// main loop
 		while (!glfwWindowShouldClose(window.glfw_window)) {
 			glfwPollEvents();
-			renderer.draw(window, device, buffers);
+			renderer.draw(window, device, mesh);
 		}
 		vkDeviceWaitIdle(device.logical_device);
 
 		// cleanup, reverse order of initiliztion
 		renderer.deinit(device);
 		texture.deinit(device);
-		buffers.deinit(device);
+		mesh.deinit(device);
 		device.deinit();
 		window.deinit();
 

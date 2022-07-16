@@ -10,7 +10,7 @@ BUILD_DIR = build
 TEST_DIR = tests
 
 CC = ccache clang++
-OPT = O2
+OPT = O3
 
 CFLAGS = -std=c++17 -Wall -Wextra -Wno-missing-braces -DDEBUG
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi

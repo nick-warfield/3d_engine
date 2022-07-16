@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include <filesystem>
+#include <string>
 
 #include "vertex.hpp"
 
@@ -13,29 +14,12 @@ struct Root {
 	static const std::filesystem::path& path;
 };
 
-const std::vector<Vertex> vertices = {
-	{{ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }},
-	{{ 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f }},
-	{{ 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f }},
-	{{ 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f }},
-
-	{{ 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
-	{{ 1.0f, 0.0f, 1.0f }, { 1.0f, 0.0f }},
-	{{ 0.0f, 1.0f, 1.0f }, { 0.0f, 1.0f }},
-	{{ 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f }},
-};
-const std::vector<uint16_t> indices = {
-	0, 1, 5, 5, 3, 0,	// front
-	4, 2, 6, 6, 7, 4,	// back
-	0, 2, 4, 4, 1, 0,	// bottom
-	3, 5, 7, 7, 6, 3,	// top
-	0, 3, 6, 6, 2, 0,	// left side
-	1, 4, 7, 7, 5, 1	// right side
-};
-
 const uint32_t WIDTH = 1920;
 const uint32_t HEIGHT = 1080;
 const int MAX_FRAMES_IN_FLIGHT = 2;
+
+const std::string MODEL_PATH = "resources/viking_room.obj";
+const std::string TEXTURE_PATH = "resources/viking_room.png";
 
 #ifdef DEBUG
 const bool enable_validation_layers = true;
