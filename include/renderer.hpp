@@ -7,6 +7,7 @@
 #include <vector>
 #include "texture.hpp"
 #include "constants.hpp"
+#include "frame_data.hpp"
 
 namespace gfx {
 
@@ -16,11 +17,12 @@ struct Buffer;
 struct BufferData;
 struct Texture;
 struct Mesh;
+struct Material;
 
 struct Renderer {
 	int width, height;
-	int current_frame = 0;
 	bool framebuffer_resized = false;
+	Frames frames;
 
 	Image depth_image;
 	Image msaa_image;
@@ -29,36 +31,34 @@ struct Renderer {
 	VkExtent2D extent;
 	VkSwapchainKHR swap_chain = VK_NULL_HANDLE;
 
+	// Moved to FrameData
 	// I think i should move these to device and mirror the record_command() pattern
 	// eg: Device::record_draw_commands(int current_frame, function<void(command_buffer)>)
 	// I can use std::bind_right() to keep the draw commands in a function here
-	VkCommandPool graphics_command_pool = VK_NULL_HANDLE;
-	std::vector<VkCommandBuffer> command_buffers;
+	// VkCommandPool graphics_command_pool = VK_NULL_HANDLE;
+	// std::vector<VkCommandBuffer> command_buffers;
 
 	// These are all associated
 	std::vector<VkImage> swap_chain_images;
 	std::vector<VkImageView> swap_chain_image_views;
 	std::vector<VkFramebuffer> framebuffers;
 
-	VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
-	VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
-	per_frame<VkDescriptorSet> descriptor_sets;
+	// Moved to Material
+	// VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
+	// VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
+	// per_frame<VkDescriptorSet> descriptor_sets;
+	// VkRenderPass render_pass = VK_NULL_HANDLE;
+	// VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+	// VkPipeline graphics_pipeline = VK_NULL_HANDLE;
 
-	VkRenderPass render_pass = VK_NULL_HANDLE;
-	VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
-	VkPipeline graphics_pipeline = VK_NULL_HANDLE;
+	// Moved to FrameData
+	// per_frame<VkSemaphore> image_available_semaphores;
+	// per_frame<VkSemaphore> render_finished_semaphores;
+	// per_frame<VkFence> in_flight_fences;
 
-	per_frame<VkSemaphore> image_available_semaphores;
-	per_frame<VkSemaphore> render_finished_semaphores;
-	per_frame<VkFence> in_flight_fences;
-
-	void init(const Window& window,
-		const Device& device,
-		const per_frame<Buffer>& uniform_buffers,
-		const Texture& texture);
-
+	void init(const Window& window, const Device& device);
 	void deinit(const Device& device, const VkAllocationCallbacks* pAllocator = nullptr);
-	void draw(Window& window, Device& device, Mesh& mesh);
+	void draw(Window& window, Device& device, Mesh& mesh, Material& material);
 
 private:
 	void init_swap_chain(const Device& device, const Window& window);

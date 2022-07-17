@@ -19,8 +19,6 @@ struct Mesh {
 	std::vector<uint32_t> indices;
 	Buffer vertex_buffer;
 
-	per_frame<Buffer> uniform_buffers;
-
 	void init(const Device& device);
 	void deinit(const Device& device, const VkAllocationCallbacks* = nullptr);
 	void update_uniform_buffer(
