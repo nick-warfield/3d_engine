@@ -3,6 +3,7 @@
 #include <vulkan/vulkan_core.h>
 #include <cstdint>
 #include <vector>
+#include <array>
 #include <filesystem>
 #include <string>
 
@@ -17,6 +18,9 @@ struct Root {
 const uint32_t WIDTH = 1920;
 const uint32_t HEIGHT = 1080;
 const int MAX_FRAMES_IN_FLIGHT = 2;
+
+template <typename T>
+using per_frame = std::array<T, MAX_FRAMES_IN_FLIGHT>;
 
 const std::string MODEL_PATH = "resources/viking_room.obj";
 const std::string TEXTURE_PATH = "resources/viking_room.png";

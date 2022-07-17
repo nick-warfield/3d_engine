@@ -29,7 +29,7 @@ static void framebuffer_resize_callback(GLFWwindow* window, int width, int heigh
 void Renderer::init(
 	const Window& window,
 	const Device& device,
-	const std::vector<Buffer>& uniform_buffers,
+	const per_frame<Buffer>& uniform_buffers,
 	const Texture& texture)
 {
 	glfwSetWindowUserPointer(window.glfw_window, &framebuffer_resized);
@@ -319,7 +319,7 @@ void Renderer::init_render_pass(const Device& device)
 
 void Renderer::init_descriptor_sets(
 	const VkDevice& device,
-	const std::vector<Buffer>& uniform_buffers,
+	const per_frame<Buffer>& uniform_buffers,
 	const Texture& texture)
 {
 	// Create Descriptor Set Layout
@@ -380,7 +380,6 @@ void Renderer::init_descriptor_sets(
 	alloc_info.pSetLayouts = layouts.data();
 	alloc_info.pNext = nullptr;
 
-	descriptor_sets.resize(MAX_FRAMES_IN_FLIGHT);
 	if (vkAllocateDescriptorSets(device, &alloc_info, descriptor_sets.data()) != VK_SUCCESS)
 		throw std::runtime_error("failed to allocate descriptor sets");
 
@@ -508,7 +507,7 @@ void Renderer::init_graphics_pipeline(const Device& device)
 	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizer.depthClampEnable = VK_FALSE;
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
 	rasterizer.lineWidth = 1.0f;
 	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
 	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -648,10 +647,6 @@ void Renderer::init_command_buffers(const Device& device)
 
 void Renderer::init_sync_objects(const VkDevice& device)
 {
-	image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
-	render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
-	in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
-
 	VkSemaphoreCreateInfo semaphore_info {};
 	semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 

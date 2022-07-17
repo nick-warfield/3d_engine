@@ -6,6 +6,7 @@
 
 #include <vector>
 #include "texture.hpp"
+#include "constants.hpp"
 
 namespace gfx {
 
@@ -41,19 +42,19 @@ struct Renderer {
 
 	VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
 	VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
-	std::vector<VkDescriptorSet> descriptor_sets;
+	per_frame<VkDescriptorSet> descriptor_sets;
 
 	VkRenderPass render_pass = VK_NULL_HANDLE;
 	VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
 	VkPipeline graphics_pipeline = VK_NULL_HANDLE;
 
-	std::vector<VkSemaphore> image_available_semaphores;
-	std::vector<VkSemaphore> render_finished_semaphores;
-	std::vector<VkFence> in_flight_fences;
+	per_frame<VkSemaphore> image_available_semaphores;
+	per_frame<VkSemaphore> render_finished_semaphores;
+	per_frame<VkFence> in_flight_fences;
 
 	void init(const Window& window,
 		const Device& device,
-		const std::vector<Buffer>& uniform_buffers,
+		const per_frame<Buffer>& uniform_buffers,
 		const Texture& texture);
 
 	void deinit(const Device& device, const VkAllocationCallbacks* pAllocator = nullptr);
@@ -64,7 +65,7 @@ private:
 	void init_image_views(const VkDevice& device);
 	void init_render_pass(const Device& device);
 	void init_descriptor_sets(const VkDevice& device,
-		const std::vector<Buffer>& uniform_buffers,
+		const per_frame<Buffer>& uniform_buffers,
 		const Texture& texture);
 	void init_graphics_pipeline(const Device& device);
 	void init_framebuffers(const VkDevice& device);

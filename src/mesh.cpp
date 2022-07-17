@@ -74,7 +74,6 @@ void Mesh::init_buffers(const Device& device)
 void Mesh::init_ubo_buffer(const Device& device)
 {
 	auto buffer_size = sizeof(UniformBufferObject);
-	uniform_buffers.resize(MAX_FRAMES_IN_FLIGHT);
 	for (auto& ubo : uniform_buffers) {
 		ubo.init(
 			device,

@@ -5,6 +5,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "buffer.hpp"
+#include "constants.hpp"
 
 namespace gfx {
 
@@ -18,7 +19,7 @@ struct Mesh {
 	std::vector<uint32_t> indices;
 	Buffer vertex_buffer;
 
-	std::vector<Buffer> uniform_buffers;
+	per_frame<Buffer> uniform_buffers;
 
 	void init(const Device& device);
 	void deinit(const Device& device, const VkAllocationCallbacks* = nullptr);
