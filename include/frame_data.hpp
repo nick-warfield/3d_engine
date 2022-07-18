@@ -20,6 +20,13 @@ struct FrameData {
 	VkSemaphore image_available_semaphore;
 	VkSemaphore render_finished_semaphore;
 	VkFence in_flight_fence;
+
+	void init(const Device& device);
+	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
+
+private:
+	void init_command_buffer(const Device& device);
+	void init_sync_objects(const Device& device);
 };
 
 struct Frames {
@@ -32,6 +39,15 @@ struct Frames {
 
 	FrameData& current_frame() {
 		return frame_data[index];
+	}
+
+	void init(const Device& device) {
+		for (auto& f : frame_data)
+			f.init(device);
+	}
+	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr) {
+		for (auto& f : frame_data)
+			f.deinit(device, pAllocator);
 	}
 };
 
