@@ -19,7 +19,7 @@ struct Mesh {
 	std::vector<uint32_t> indices;
 	Buffer vertex_buffer;
 
-	void init(const Device& device);
+	void init(const Device& device, std::string filename);
 	void deinit(const VkDevice& device, const VkAllocationCallbacks* = nullptr);
 
 private:
@@ -29,7 +29,7 @@ private:
 		VkDeviceSize size);
 
 	void init_buffers(const Device& device);
-	void load_model();
+	void load_model(std::string filename);
 };
 
 

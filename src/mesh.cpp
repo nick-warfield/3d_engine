@@ -15,9 +15,9 @@
 
 namespace gfx {
 
-void Mesh::init(const Device& device)
+void Mesh::init(const Device& device, std::string filename)
 {
-	load_model();
+	load_model(filename);
 	init_buffers(device);
 }
 
@@ -64,7 +64,7 @@ void Mesh::init_buffers(const Device& device)
 	staging_buffer.deinit(device.logical_device);
 }
 
-void Mesh::load_model()
+void Mesh::load_model(std::string filename)
 {
 	tinyobj::attrib_t attribute;
 	std::vector<tinyobj::shape_t> shapes;
@@ -76,7 +76,7 @@ void Mesh::load_model()
 			&shapes,
 			&materials,
 			&err,
-			(Root::path / MODEL_PATH).c_str())) {
+			(Root::path / "resources" / filename).c_str())) {
 		throw std::runtime_error(err);
 	}
 

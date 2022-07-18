@@ -13,6 +13,7 @@ namespace gfx {
 void Material::init(
 	const Device& device,
 	const VkRenderPass& render_pass,
+	std::string texture_name,
 	std::string vertex_shader_name,
 	std::string fragment_shader_name)
 {
@@ -20,7 +21,7 @@ void Material::init(
 	auto frag_shader = load_shader(device.logical_device, fragment_shader_name);
 
 	uniform.init(device);
-	texture.init(device);
+	texture.init(device, texture_name);
 
 	init_descriptor_set(device.logical_device);
 	init_pipeline(device, render_pass, vert_shader, frag_shader);
@@ -250,10 +251,15 @@ void Material::init_pipeline(
 	depth_stencil.front = {};
 	depth_stencil.back = {};
 
+	VkDescriptorSetLayout layouts[] {
+		descriptor_set_layout,		// global set
+		descriptor_set_layout		// instance set
+	};
+
 	VkPipelineLayoutCreateInfo pipeline_layout_info {};
 	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount = 1;
-	pipeline_layout_info.pSetLayouts = &descriptor_set_layout;
+	pipeline_layout_info.setLayoutCount = 2;
+	pipeline_layout_info.pSetLayouts = layouts;
 	pipeline_layout_info.pushConstantRangeCount = 0;
 	pipeline_layout_info.pPushConstantRanges = nullptr;
 

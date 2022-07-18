@@ -78,9 +78,9 @@ void Image::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocat
 	vkFreeMemory(device, image_memory, pAllocator);
 }
 
-void Texture::init(const Device& device)
+void Texture::init(const Device& device, std::string filename)
 {
-	init_texture(device);
+	init_texture(device, filename);
 	init_sampler(device);
 }
 
@@ -90,11 +90,11 @@ void Texture::deinit(const VkDevice& device, const VkAllocationCallbacks* pAlloc
 	image.deinit(device, pAllocator);
 }
 
-void Texture::init_texture(const Device& device)
+void Texture::init_texture(const Device& device, std::string filename)
 {
 	int f_width, f_height, f_channels;
 	stbi_uc* pixels = stbi_load(
-		(Root::path / TEXTURE_PATH).c_str(),
+		(Root::path / "resources" / filename).c_str(),
 		&f_width,
 		&f_height,
 		&f_channels,

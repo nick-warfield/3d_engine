@@ -25,6 +25,7 @@ struct Material {
 
 	void init(const Device& device,
 			const VkRenderPass& render_pass,
+			std::string texture_name,
 			std::string vertex_shader_name,
 			std::string fragment_shader_name);
 	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);

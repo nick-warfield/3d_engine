@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 #include <vector>
+#include <string>
 
 namespace gfx {
 
@@ -27,11 +28,11 @@ struct Texture {
 	VkSampler sampler;
 	Image image;
 
-	void init(const Device& device);
+	void init(const Device& device, std::string filename);
 	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
 
 private:
-	void init_texture(const Device& device);
+	void init_texture(const Device& device, std::string filename);
 	void init_sampler(const Device& device);
 };
 

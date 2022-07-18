@@ -42,10 +42,15 @@ int main(int argc, char** argv)
 		device.init(window.instance, window.surface);
 		renderer.init(window, device);
 
-		mesh.init(device);
+		mesh.init(device, MODEL_PATH);
 		//uniform.init(device);
 		//texture.init(device);
-		material.init(device, renderer.render_pass, "shader_vert.spv", "white_out_frag.spv");
+		material.init(
+				device,
+				renderer.render_pass,
+				TEXTURE_PATH,
+				"shader_vert.spv",
+				"white_out_frag.spv");
 
 		// main loop
 		while (!glfwWindowShouldClose(window.glfw_window)) {

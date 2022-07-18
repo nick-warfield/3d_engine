@@ -2,7 +2,6 @@
 #include "buffer.hpp"
 #include "constants.hpp"
 #include "device.hpp"
-#include "texture.hpp"
 #include "vertex.hpp"
 #include "window.hpp"
 #include "mesh.hpp"
@@ -39,7 +38,7 @@ void Renderer::init(const Window& window, const Device& device)
 	init_msaa_image(device);
 	init_framebuffers(dev);
 
-	base_material.init(device, render_pass, "shader_vert.spv", "shader_frag.spv");
+	base_material.init(device, render_pass, TEXTURE_PATH, "shader_vert.spv", "shader_frag.spv");
 	frames.init(device);
 }
 
@@ -369,7 +368,7 @@ void Renderer::record_command_buffer(
 		command_buffer,
 		VK_PIPELINE_BIND_POINT_GRAPHICS,
 		material.pipeline_layout,
-		0,
+		1,
 		1,
 		&material.descriptor_set[frames.index],
 		0,

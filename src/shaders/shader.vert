@@ -3,7 +3,7 @@
 // Push constants would be a better choice for MVP transformation instead of UBOs
 // eg: layout(push_constant) uniform MVPTransform...
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(set = 1, binding = 0) uniform UniformBufferObject {
 	mat4 model;
 	mat4 view;
 	mat4 projection;

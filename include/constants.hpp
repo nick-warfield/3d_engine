@@ -18,8 +18,8 @@ struct Root {
 const uint32_t WIDTH = 1920;
 const uint32_t HEIGHT = 1080;
 
-const std::string MODEL_PATH = "resources/viking_room.obj";
-const std::string TEXTURE_PATH = "resources/viking_room.png";
+const std::string MODEL_PATH = "viking_room.obj";
+const std::string TEXTURE_PATH = "viking_room.png";
 
 #ifdef DEBUG
 const bool enable_validation_layers = true;
