@@ -20,11 +20,7 @@ struct Mesh {
 	Buffer vertex_buffer;
 
 	void init(const Device& device);
-	void deinit(const Device& device, const VkAllocationCallbacks* = nullptr);
-	void update_uniform_buffer(
-		const VkDevice& device,
-		VkExtent2D extent,
-		uint32_t current_image);
+	void deinit(const VkDevice& device, const VkAllocationCallbacks* = nullptr);
 
 private:
 	void copy_buffer(const Device& device,
@@ -33,7 +29,6 @@ private:
 		VkDeviceSize size);
 
 	void init_buffers(const Device& device);
-	void init_ubo_buffer(const Device& device);
 	void load_model();
 };
 

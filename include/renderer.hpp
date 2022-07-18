@@ -38,17 +38,13 @@ struct Renderer {
 	std::vector<VkFramebuffer> framebuffers;
 
 	void init(const Window& window, const Device& device);
-	void deinit(const Device& device, const VkAllocationCallbacks* pAllocator = nullptr);
+	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
 	void draw(Window& window, Device& device, Mesh& mesh, Material& material);
 
 private:
 	void init_swap_chain(const Device& device, const Window& window);
 	void init_image_views(const VkDevice& device);
 	void init_render_pass(const Device& device);
-	void init_descriptor_sets(const VkDevice& device,
-		const per_frame<Buffer>& uniform_buffers,
-		const Texture& texture);
-	void init_graphics_pipeline(const Device& device);
 	void init_framebuffers(const VkDevice& device);
 	void init_depth_image(const Device& device);
 	void init_msaa_image(const Device& device);

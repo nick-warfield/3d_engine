@@ -28,7 +28,7 @@ struct Texture {
 	Image image;
 
 	void init(const Device& device);
-	void deinit(const Device& device, const VkAllocationCallbacks* pAllocator = nullptr);
+	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
 
 private:
 	void init_texture(const Device& device);

@@ -16,7 +16,7 @@ struct Buffer {
 		VkDeviceSize size,
 		VkBufferUsageFlags usage,
 		VkMemoryPropertyFlags properties);
-	void deinit(const Device& device, const VkAllocationCallbacks* = nullptr);
+	void deinit(const VkDevice& device, const VkAllocationCallbacks* = nullptr);
 };
 
 }

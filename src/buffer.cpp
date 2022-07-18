@@ -50,10 +50,10 @@ void Buffer::init(const Device& device,
 	vkBindBufferMemory(dev, buffer, memory, 0);
 }
 
-void Buffer::deinit(const Device& device, const VkAllocationCallbacks* pAllocator)
+void Buffer::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator)
 {
-	vkDestroyBuffer(device.logical_device, buffer, pAllocator);
-	vkFreeMemory(device.logical_device, memory, pAllocator);
+	vkDestroyBuffer(device, buffer, pAllocator);
+	vkFreeMemory(device, memory, pAllocator);
 }
 
 }

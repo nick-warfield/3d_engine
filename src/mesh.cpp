@@ -4,12 +4,6 @@
 #include "uniform_buffer_object.hpp"
 #include "vertex.hpp"
 
-#define GLM_FORCE_RADIANS
-#include <glm/ext/matrix_clip_space.hpp>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/trigonometric.hpp>
-
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
@@ -25,7 +19,6 @@ void Mesh::init(const Device& device)
 {
 	load_model();
 	init_buffers(device);
-	init_ubo_buffer(device);
 }
 
 void Mesh::init_buffers(const Device& device)
@@ -52,7 +45,7 @@ void Mesh::init_buffers(const Device& device)
 
 	// Create Index Buffer
 	buffer_size = sizeof(indices[0]) * indices.size();
-	staging_buffer.deinit(device);
+	staging_buffer.deinit(device.logical_device);
 	staging_buffer.init(device,
 		buffer_size,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -68,19 +61,7 @@ void Mesh::init_buffers(const Device& device)
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	copy_buffer(device, staging_buffer.buffer, index_buffer.buffer, buffer_size);
-	staging_buffer.deinit(device);
-}
-
-void Mesh::init_ubo_buffer(const Device& device)
-{
-	auto buffer_size = sizeof(UniformBufferObject);
-	for (auto& ubo : uniform_buffers) {
-		ubo.init(
-			device,
-			buffer_size,
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	}
+	staging_buffer.deinit(device.logical_device);
 }
 
 void Mesh::load_model()
@@ -124,12 +105,10 @@ void Mesh::load_model()
 	}
 }
 
-void Mesh::deinit(const Device& device, const VkAllocationCallbacks* pAllocator)
+void Mesh::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator)
 {
 	index_buffer.deinit(device, pAllocator);
 	vertex_buffer.deinit(device, pAllocator);
-	for (auto ubo : uniform_buffers)
-		ubo.deinit(device, pAllocator);
 }
 
 void Mesh::copy_buffer(const Device& device,
@@ -144,41 +123,6 @@ void Mesh::copy_buffer(const Device& device,
 		copy_region.size = size;
 		vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
 	});
-}
-
-void Mesh::update_uniform_buffer(
-	const VkDevice& device,
-	VkExtent2D extent,
-	uint32_t current_image)
-{
-	static auto start_time = std::chrono::high_resolution_clock::now();
-
-	auto current_time = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
-
-	UniformBufferObject ubo {};
-	ubo.model = glm::rotate(
-		glm::mat4(1.0f),
-		time * glm::radians(90.0f),
-		glm::vec3(0.0f, 0.0f, 1.0f));
-
-	ubo.view = glm::lookAt(
-		glm::vec3(2.0f, 2.0f, 2.0f),
-		glm::vec3(0.0f, 0.0f, 0.0f),
-		glm::vec3(0.0f, 0.0f, 1.0f));
-
-	ubo.projection = glm::perspective(
-		glm::radians(45.0f),
-		((float)extent.width / (float)extent.height),
-		0.1f,
-		10.0f);
-	ubo.projection[1][1] *= -1;
-
-	void* data;
-	auto& memory = uniform_buffers[current_image].memory;
-	vkMapMemory(device, memory, 0, sizeof(ubo), 0, &data);
-	memcpy(data, &ubo, sizeof(ubo));
-	vkUnmapMemory(device, memory);
 }
 
 }

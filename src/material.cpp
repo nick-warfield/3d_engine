@@ -4,6 +4,7 @@
 
 #include <stdexcept>
 #include <fstream>
+#include <iostream>
 
 namespace gfx {
 
@@ -15,6 +16,10 @@ void Material::init(
 {
 	auto vert_shader = load_shader(device.logical_device, vertex_shader_name);
 	auto frag_shader = load_shader(device.logical_device, fragment_shader_name);
+
+	uniform.init(device);
+	texture.init(device);
+
 	init_descriptor_set(device.logical_device);
 	init_derived_pipeline(device, base_pipeline, vert_shader, frag_shader);
 
@@ -28,6 +33,8 @@ void Material::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllo
 	vkDestroyPipelineLayout(device, pipeline_layout, pAllocator);
 	vkDestroyDescriptorPool(device, descriptor_pool, pAllocator);
 	vkDestroyDescriptorSetLayout(device, descriptor_set_layout, pAllocator);
+	texture.deinit(device);
+	uniform.deinit(device);
 }
 
 void Material::init_descriptor_set(const VkDevice& device)
@@ -233,7 +240,7 @@ void Material::init_base_pipeline(
 	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizer.depthClampEnable = VK_FALSE;
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
 	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
 	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;

@@ -84,10 +84,10 @@ void Texture::init(const Device& device)
 	init_sampler(device);
 }
 
-void Texture::deinit(const Device& device, const VkAllocationCallbacks* pAllocator)
+void Texture::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator)
 {
-	vkDestroySampler(device.logical_device, sampler, pAllocator);
-	image.deinit(device.logical_device, pAllocator);
+	vkDestroySampler(device, sampler, pAllocator);
+	image.deinit(device, pAllocator);
 }
 
 void Texture::init_texture(const Device& device)
@@ -151,7 +151,7 @@ void Texture::init_texture(const Device& device)
 
 	// generate_mipmaps transitions to fragment shader layout for us
 	generate_mipmaps(device, image.image, VK_FORMAT_R8G8B8A8_SRGB, width, height, mip_levels);
-	staging_buffer.deinit(device);
+	staging_buffer.deinit(device.logical_device);
 }
 
 void Texture::init_sampler(const Device& device)

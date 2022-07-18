@@ -3,7 +3,6 @@
 #include "constants.hpp"
 #include "device.hpp"
 #include "texture.hpp"
-#include "uniform_buffer_object.hpp"
 #include "vertex.hpp"
 #include "window.hpp"
 #include "mesh.hpp"
@@ -48,23 +47,21 @@ void Renderer::init(const Window& window, const Device& device)
 	frames.init(device);
 }
 
-void Renderer::deinit(const Device& device, const VkAllocationCallbacks* pAllocator)
+void Renderer::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator)
 {
-	auto dev = device.logical_device;
-
-	frames.deinit(dev, pAllocator);
-	depth_image.deinit(dev, pAllocator);
-	msaa_image.deinit(dev, pAllocator);
+	frames.deinit(device, pAllocator);
+	depth_image.deinit(device, pAllocator);
+	msaa_image.deinit(device, pAllocator);
 
 	for (auto framebuffer : framebuffers)
-		vkDestroyFramebuffer(dev, framebuffer, pAllocator);
+		vkDestroyFramebuffer(device, framebuffer, pAllocator);
 
-	vkDestroyRenderPass(dev, render_pass, pAllocator);
-	base_material.deinit(dev, pAllocator);
+	vkDestroyRenderPass(device, render_pass, pAllocator);
+	base_material.deinit(device, pAllocator);
 
 	for (auto view : swap_chain_image_views)
-		vkDestroyImageView(dev, view, pAllocator);
-	vkDestroySwapchainKHR(dev, swap_chain, pAllocator);
+		vkDestroyImageView(device, view, pAllocator);
+	vkDestroySwapchainKHR(device, swap_chain, pAllocator);
 }
 
 void Renderer::init_swap_chain(const Device& device, const Window& window)
@@ -333,8 +330,8 @@ void Renderer::init_framebuffers(const VkDevice& device)
 
 void Renderer::record_command_buffer(
 	VkCommandBuffer& command_buffer,
-	const VkDescriptorSet& descriptor_set,
 	const Mesh& mesh,
+	const Material& material,
 	int image_index)
 {
 	VkCommandBufferBeginInfo begin_info {};
@@ -360,7 +357,7 @@ void Renderer::record_command_buffer(
 	render_pass_info.pClearValues = clear_values.data();
 
 	vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
 
 	VkBuffer vertex_buffers[] = { mesh.vertex_buffer.buffer };
 	VkDeviceSize offsets[] = { 0 };
@@ -384,10 +381,10 @@ void Renderer::record_command_buffer(
 	vkCmdBindDescriptorSets(
 		command_buffer,
 		VK_PIPELINE_BIND_POINT_GRAPHICS,
-		pipeline_layout,
+		material.pipeline_layout,
 		0,
 		1,
-		&descriptor_set,
+		&material.descriptor_set[frames.index],
 		0,
 		nullptr);
 
@@ -428,16 +425,18 @@ void Renderer::recreate_swap_chain(Window& window, Device& device)
 void Renderer::draw(
 	Window& window,
 	Device& device,
-	Mesh& mesh)
+	Mesh& mesh,
+	Material& material)
 {
-	vkWaitForFences(device.logical_device, 1, &in_flight_fences[current_frame], VK_TRUE, UINT64_MAX);
+	auto frame = frames.current_frame();
+	vkWaitForFences(device.logical_device, 1, &frame.in_flight_fence, VK_TRUE, UINT64_MAX);
 
 	uint32_t image_index;
 	auto result = vkAcquireNextImageKHR(
 		device.logical_device,
 		swap_chain,
 		UINT64_MAX,
-		image_available_semaphores[current_frame],
+		frame.image_available_semaphore,
 		VK_NULL_HANDLE,
 		&image_index);
 
@@ -454,28 +453,28 @@ void Renderer::draw(
 		break;
 	}
 
-	vkResetFences(device.logical_device, 1, &in_flight_fences[current_frame]);
+	vkResetFences(device.logical_device, 1, &frame.in_flight_fence);
 
-	mesh.update_uniform_buffer(device.logical_device, extent, current_frame);
-	vkResetCommandBuffer(command_buffers[current_frame], 0);
+	//mesh.update_uniform_buffer(device.logical_device, extent, current_frame);
+	vkResetCommandBuffer(frame.command_buffer, 0);
 	record_command_buffer(
-		command_buffers[current_frame],
-		descriptor_sets[current_frame],
+		frame.command_buffer,
 		mesh,
+		material,
 		image_index);
 
 	VkSubmitInfo submit_info {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-	VkSemaphore wait_semaphores[] = { image_available_semaphores[current_frame] };
+	VkSemaphore wait_semaphores[] = { frame.image_available_semaphore };
 	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	submit_info.waitSemaphoreCount = 1;
 	submit_info.pWaitSemaphores = wait_semaphores;
 	submit_info.pWaitDstStageMask = wait_stages;
 	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &command_buffers[current_frame];
+	submit_info.pCommandBuffers = &frame.command_buffer;
 
-	VkSemaphore signal_semaphores[] = { render_finished_semaphores[current_frame] };
+	VkSemaphore signal_semaphores[] = { frame.render_finished_semaphore };
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
 
@@ -483,7 +482,7 @@ void Renderer::draw(
 			device.graphics_queue_family.queue,
 			1,
 			&submit_info,
-			in_flight_fences[current_frame])
+			frame.in_flight_fence)
 		!= VK_SUCCESS)
 		throw std::runtime_error("failed to submit draw command buffer");
 
@@ -519,7 +518,7 @@ void Renderer::draw(
 		break;
 	}
 
-	current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+	frames.next();
 }
 
 }

@@ -30,28 +30,40 @@ int main(int argc, char** argv)
 
 	Window window;
 	Device device;
-	Mesh mesh;
-	Texture texture;
 	Renderer renderer;
+
+	Mesh mesh;
+	//Texture texture;
+	//Uniform uniform;
+	//Material material;
 
 	try {
 		window.init("Vulkan Project", WIDTH, HEIGHT);
 		device.init(window.instance, window.surface);
+		renderer.init(window, device);
+
 		mesh.init(device);
-		texture.init(device);
-		renderer.init(window, device, mesh.uniform_buffers, texture);
+		//uniform.init(device);
+		//texture.init(device);
+		//material.init(device);
 
 		// main loop
 		while (!glfwWindowShouldClose(window.glfw_window)) {
 			glfwPollEvents();
-			renderer.draw(window, device, mesh);
+			renderer.base_material.uniform.update(
+					device.logical_device,
+					renderer.extent,
+					renderer.frames.index);
+			renderer.draw(window, device, mesh, renderer.base_material);
 		}
 		vkDeviceWaitIdle(device.logical_device);
 
 		// cleanup, reverse order of initiliztion
-		renderer.deinit(device);
-		texture.deinit(device);
-		mesh.deinit(device);
+		//texture.deinit(device.logical_device);
+		//uniform.deinit(device.logical_device);
+		mesh.deinit(device.logical_device);
+
+		renderer.deinit(device.logical_device);
 		device.deinit();
 		window.deinit();
 

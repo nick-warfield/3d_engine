@@ -41,6 +41,9 @@ struct Material {
 		auto frag_shader =
 			load_shader(device.logical_device, fragment_shader_name);
 
+		m.uniform.init(device);
+		m.texture.init(device);
+
 		m.init_descriptor_set(device.logical_device);
 		m.init_base_pipeline(device, render_pass, vert_shader, frag_shader);
 
