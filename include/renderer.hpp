@@ -6,6 +6,7 @@
 
 #include <vector>
 #include "texture.hpp"
+#include "uniform.hpp"
 #include "constants.hpp"
 #include "frame_data.hpp"
 #include "material.hpp"
@@ -14,9 +15,6 @@ namespace gfx {
 
 struct Window;
 struct Device;
-struct Buffer;
-struct BufferData;
-struct Texture;
 struct Mesh;
 
 struct Renderer {
@@ -28,7 +26,12 @@ struct Renderer {
 	VkRenderPass render_pass = VK_NULL_HANDLE;
 	Image depth_image;
 	Image msaa_image;
-	Material base_material;
+
+	Uniform uniform;
+	Texture texture;
+	VkDescriptorPool descriptor_pool;
+	VkDescriptorSetLayout descriptor_set_layout;
+	per_frame<VkDescriptorSet> descriptor_set;
 
 	Frames frames;
 
@@ -48,6 +51,7 @@ private:
 	void init_framebuffers(const VkDevice& device);
 	void init_depth_image(const Device& device);
 	void init_msaa_image(const Device& device);
+	void init_base_descriptor(const Device& device);
 
 	void record_command_buffer(
 		VkCommandBuffer& command_buffer,

@@ -48,6 +48,7 @@ int main(int argc, char** argv)
 		material.init(
 				device,
 				renderer.render_pass,
+				renderer.descriptor_set_layout,
 				TEXTURE_PATH,
 				"shader_vert.spv",
 				"white_out_frag.spv");

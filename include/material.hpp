@@ -25,6 +25,7 @@ struct Material {
 
 	void init(const Device& device,
 			const VkRenderPass& render_pass,
+			VkDescriptorSetLayout base_layout,
 			std::string texture_name,
 			std::string vertex_shader_name,
 			std::string fragment_shader_name);
@@ -35,6 +36,7 @@ private:
 	void init_pipeline(
 			const Device& device,
 			VkRenderPass render_pass,
+			VkDescriptorSetLayout base_layout,
 			VkShaderModule vert_shader,
 			VkShaderModule frag_shader);
 };

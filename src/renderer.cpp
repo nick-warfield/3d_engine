@@ -2,9 +2,11 @@
 #include "buffer.hpp"
 #include "constants.hpp"
 #include "device.hpp"
+#include "texture.hpp"
 #include "vertex.hpp"
 #include "window.hpp"
 #include "mesh.hpp"
+#include "util.hpp"
 
 #include <array>
 #include <vulkan/vulkan_core.h>
@@ -37,8 +39,8 @@ void Renderer::init(const Window& window, const Device& device)
 	init_depth_image(device);
 	init_msaa_image(device);
 	init_framebuffers(dev);
+	init_base_descriptor(device);
 
-	base_material.init(device, render_pass, TEXTURE_PATH, "shader_vert.spv", "shader_frag.spv");
 	frames.init(device);
 }
 
@@ -52,7 +54,11 @@ void Renderer::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllo
 		vkDestroyFramebuffer(device, framebuffer, pAllocator);
 
 	vkDestroyRenderPass(device, render_pass, pAllocator);
-	base_material.deinit(device, pAllocator);
+
+	uniform.deinit(device, pAllocator);
+	texture.deinit(device, pAllocator);
+	vkDestroyDescriptorPool(device, descriptor_pool, pAllocator);
+	vkDestroyDescriptorSetLayout(device, descriptor_set_layout, pAllocator);
 
 	for (auto view : swap_chain_image_views)
 		vkDestroyImageView(device, view, pAllocator);
@@ -323,6 +329,21 @@ void Renderer::init_framebuffers(const VkDevice& device)
 	}
 }
 
+void Renderer::init_base_descriptor(const Device& device) {
+	descriptor_pool = make_descriptor_pool(device.logical_device);
+	descriptor_set_layout = make_default_descriptor_layout(device.logical_device);
+
+	texture.init(device, "viking_room.png");
+	uniform.init(device);
+
+	descriptor_set = make_descriptor_set(
+			device.logical_device,
+			descriptor_pool,
+			descriptor_set_layout,
+			texture,
+			uniform);
+}
+
 void Renderer::record_command_buffer(
 	VkCommandBuffer& command_buffer,
 	const Mesh& mesh,
@@ -352,18 +373,18 @@ void Renderer::record_command_buffer(
 	render_pass_info.pClearValues = clear_values.data();
 
 	vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, base_material.pipeline);
+	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
+
 	vkCmdBindDescriptorSets(
 		command_buffer,
 		VK_PIPELINE_BIND_POINT_GRAPHICS,
 		material.pipeline_layout,
 		0,
 		1,
-		&base_material.descriptor_set[frames.index],
+		&descriptor_set[frames.index],
 		0,
 		nullptr);
 
-	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
 	vkCmdBindDescriptorSets(
 		command_buffer,
 		VK_PIPELINE_BIND_POINT_GRAPHICS,

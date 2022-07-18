@@ -1,26 +1,24 @@
 #pragma once
 
-#include <fstream>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
-#include "constants.hpp"
+#include "frame_data.hpp"
 
 namespace gfx {
 
-inline std::vector<char> read_file(const char* filename)
-{
-	std::ifstream file((Root::path / filename).string(), std::ios::ate | std::ios::binary);
-	if (!file.is_open())
-		throw std::runtime_error("failed to open file");
+struct Texture;
+struct Uniform;
 
-	size_t file_size = (size_t)file.tellg();
-	std::vector<char> buffer(file_size);
+std::vector<char> read_file(const char* filename);
 
-	file.seekg(0);
-	file.read(buffer.data(), file_size);
-	file.close();
-
-	return buffer;
-};
-
+// Add Shader Introspection Later
+VkDescriptorPool make_descriptor_pool(const VkDevice& device);
+VkDescriptorSetLayout make_default_descriptor_layout(const VkDevice& device);
+per_frame<VkDescriptorSet> make_descriptor_set(
+	const VkDevice& device,
+	VkDescriptorPool pool,
+	VkDescriptorSetLayout layout,
+	const Texture& texture,
+	const Uniform& uniform);
 }
