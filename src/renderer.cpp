@@ -39,11 +39,7 @@ void Renderer::init(const Window& window, const Device& device)
 	init_msaa_image(device);
 	init_framebuffers(dev);
 
-	base_material = Material::make_base_material(
-			device,
-			render_pass,
-			"shader_vert.spv",
-			"shader_frag.spv");
+	base_material.init(device, render_pass, "shader_vert.spv", "shader_frag.spv");
 	frames.init(device);
 }
 
@@ -357,7 +353,27 @@ void Renderer::record_command_buffer(
 	render_pass_info.pClearValues = clear_values.data();
 
 	vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, base_material.pipeline);
+	vkCmdBindDescriptorSets(
+		command_buffer,
+		VK_PIPELINE_BIND_POINT_GRAPHICS,
+		material.pipeline_layout,
+		0,
+		1,
+		&base_material.descriptor_set[frames.index],
+		0,
+		nullptr);
+
 	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
+	vkCmdBindDescriptorSets(
+		command_buffer,
+		VK_PIPELINE_BIND_POINT_GRAPHICS,
+		material.pipeline_layout,
+		0,
+		1,
+		&material.descriptor_set[frames.index],
+		0,
+		nullptr);
 
 	VkBuffer vertex_buffers[] = { mesh.vertex_buffer.buffer };
 	VkDeviceSize offsets[] = { 0 };
@@ -377,16 +393,6 @@ void Renderer::record_command_buffer(
 	scissor.offset = { 0, 0 };
 	scissor.extent = extent;
 	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
-
-	vkCmdBindDescriptorSets(
-		command_buffer,
-		VK_PIPELINE_BIND_POINT_GRAPHICS,
-		material.pipeline_layout,
-		0,
-		1,
-		&material.descriptor_set[frames.index],
-		0,
-		nullptr);
 
 	vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(mesh.indices.size()), 1, 0, 0, 0);
 	vkCmdEndRenderPass(command_buffer);

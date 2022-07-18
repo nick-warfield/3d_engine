@@ -2,17 +2,19 @@
 #include "device.hpp"
 #include "util.hpp"
 
-#include <stdexcept>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
+#include <vulkan/vulkan_core.h>
 
 namespace gfx {
 
 void Material::init(
-		const Device& device,
-		const VkPipeline& base_pipeline,
-		std::string vertex_shader_name,
-		std::string fragment_shader_name)
+	const Device& device,
+	const VkRenderPass& render_pass,
+	std::string vertex_shader_name,
+	std::string fragment_shader_name)
 {
 	auto vert_shader = load_shader(device.logical_device, vertex_shader_name);
 	auto frag_shader = load_shader(device.logical_device, fragment_shader_name);
@@ -21,7 +23,7 @@ void Material::init(
 	texture.init(device);
 
 	init_descriptor_set(device.logical_device);
-	init_derived_pipeline(device, base_pipeline, vert_shader, frag_shader);
+	init_pipeline(device, render_pass, vert_shader, frag_shader);
 
 	vkDestroyShaderModule(device.logical_device, vert_shader, nullptr);
 	vkDestroyShaderModule(device.logical_device, frag_shader, nullptr);
@@ -137,57 +139,11 @@ void Material::init_descriptor_set(const VkDevice& device)
 	}
 }
 
-void Material::init_derived_pipeline(
-		const Device& device,
-		const VkPipeline& base_pipeline,
-		VkShaderModule vert_shader,
-		VkShaderModule frag_shader)
-{
-	VkPipelineShaderStageCreateInfo vert_shader_stage_info {};
-	vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vert_shader_stage_info.module = vert_shader;
-	vert_shader_stage_info.pName = "main";
-
-	VkPipelineShaderStageCreateInfo frag_shader_stage_info {};
-	frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	frag_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	frag_shader_stage_info.module = frag_shader;
-	frag_shader_stage_info.pName = "main";
-
-	VkPipelineShaderStageCreateInfo shader_stages[] = {
-		vert_shader_stage_info,
-		frag_shader_stage_info
-	};
-
-	VkPipelineLayoutCreateInfo pipeline_layout_info {};
-	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount = 1;
-	pipeline_layout_info.pSetLayouts = &descriptor_set_layout;
-	pipeline_layout_info.pushConstantRangeCount = 0;
-	pipeline_layout_info.pPushConstantRanges = nullptr;
-
-	if (vkCreatePipelineLayout(device.logical_device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
-		throw std::runtime_error("failed to create pipeline layout");
-
-	VkGraphicsPipelineCreateInfo pipeline_info {};
-	pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipeline_info.flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
-	pipeline_info.stageCount = 2;
-	pipeline_info.pStages = shader_stages;
-	pipeline_info.layout = pipeline_layout;
-	pipeline_info.basePipelineHandle = base_pipeline;
-
-	if (vkCreateGraphicsPipelines(device.logical_device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &pipeline)
-		!= VK_SUCCESS)
-		throw std::runtime_error("failed to create graphics pipeline");
-}
-
-void Material::init_base_pipeline(
-		const Device& device,
-		VkRenderPass render_pass,
-		VkShaderModule vert_shader,
-		VkShaderModule frag_shader)
+void Material::init_pipeline(
+	const Device& device,
+	VkRenderPass render_pass,
+	VkShaderModule vert_shader,
+	VkShaderModule frag_shader)
 {
 	VkPipelineShaderStageCreateInfo vert_shader_stage_info {};
 	vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -306,7 +262,6 @@ void Material::init_base_pipeline(
 
 	VkGraphicsPipelineCreateInfo pipeline_info {};
 	pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipeline_info.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
 	pipeline_info.stageCount = 2;
 	pipeline_info.pStages = shader_stages;
 	pipeline_info.pVertexInputState = &vertex_input_info;
@@ -327,7 +282,8 @@ void Material::init_base_pipeline(
 		throw std::runtime_error("failed to create graphics pipeline");
 }
 
-VkShaderModule load_shader(VkDevice device, std::string filename) {
+VkShaderModule load_shader(VkDevice device, std::string filename)
+{
 	auto shader_file = read_file(("shaders/" + filename).c_str());
 
 	VkShaderModuleCreateInfo create_info {};
@@ -337,11 +293,11 @@ VkShaderModule load_shader(VkDevice device, std::string filename) {
 
 	VkShaderModule shader_module {};
 	if (vkCreateShaderModule(
-				device,
-				&create_info,
-				nullptr,
-				&shader_module)
-			!= VK_SUCCESS)
+			device,
+			&create_info,
+			nullptr,
+			&shader_module)
+		!= VK_SUCCESS)
 		throw std::runtime_error("failed to create shader module");
 
 	return shader_module;
