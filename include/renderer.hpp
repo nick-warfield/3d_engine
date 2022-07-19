@@ -4,13 +4,13 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <vector>
-#include "texture.hpp"
-#include "uniform.hpp"
+#include "camera.hpp"
 #include "constants.hpp"
 #include "frame_data.hpp"
 #include "material.hpp"
-#include "camera.hpp"
+#include "texture.hpp"
+#include "uniform.hpp"
+#include <vector>
 
 namespace gfx {
 
@@ -37,6 +37,13 @@ struct Renderer {
 
 	Frames frames;
 	Camera* camera;
+
+	const glm::mat4 correction_matrix = {
+		{ 1.0f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f,-1.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, 0.5f, 0.5f },
+		{ 0.0f, 0.0f, 0.0f, 1.0f }
+	};
 
 	// These are all associated
 	std::vector<VkImage> swap_chain_images;

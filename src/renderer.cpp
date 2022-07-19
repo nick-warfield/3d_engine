@@ -364,7 +364,7 @@ void Renderer::record_command_buffer(
 		0,
 		nullptr);
 
-	glm::mat4 matrix = camera->matrix() * transform.matrix();
+	glm::mat4 matrix = correction_matrix * camera->matrix() * transform.matrix();
 	vkCmdPushConstants(
 			command_buffer,
 			material.pipeline_layout,

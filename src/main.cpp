@@ -88,11 +88,11 @@ int main(int argc, char** argv)
 	Mesh cube, sphere;
 	Material material1, material2;
 
-	Transform transform1 {
-		glm::vec3(5.0f, 0.0f, 0.0f)
-	};
 	Transform transform2 {
-		glm::vec3(-5.0f, -2.0f, 0.0f)
+		glm::vec3(20.0f, -3.0f, 5.0f)
+	};
+	Transform transform1 {
+		glm::vec3(-5.0f, 4.0f, 0.0f)
 	};
 
 	try {
@@ -110,12 +110,19 @@ int main(int argc, char** argv)
 		camera.depth_min = 0.1f;
 		camera.depth_max = 100.0f;
 		camera.type = Camera::PERSPECTIVE;
+	
+		//camera.width = 16;
+		//camera.height = 9;
+		//camera.fov = 65.0f;
+		//camera.depth_min = 0.0f;
+		//camera.depth_max = 1000.0f;
+		//camera.type = Camera::ORTHOGRAPHIC;
 
-		camera.transform.position = glm::vec3(0.0f, -6.0f, 15.0f);
-		camera.transform.rotation = glm::rotate(
-			camera.transform.rotation,
-			glm::radians(-20.0f),
-			glm::vec3(1.0f, 0.0f, 0.0f));
+		camera.transform.position = glm::vec3(0.0f, 0.0f, -10.0f);
+		//camera.transform.rotation = glm::rotate(
+		//	camera.transform.rotation,
+		//	glm::radians(180.0f),
+		//	glm::vec3(0.0f, 1.0f, 0.0f));
 
 		sphere.init(device, "sphere.obj");
 		cube.init(device, "cube.obj");
@@ -154,17 +161,17 @@ int main(int argc, char** argv)
 				glm::radians(0.01f),
 				glm::normalize(glm::vec3(1.0f, 1.3f, 0.4f)));
 
-			transform1.scale = glm::vec3((1 + glm::sin(time)) / 2);
+			transform1.position = glm::vec3(10 * (glm::sin(time)), 3.0f, 0.0f);
 
 			auto v = glm::vec4(0.0f);
 			if (forward)
-				v.z += 1.0f;
-			if (backward)
 				v.z -= 1.0f;
+			if (backward)
+				v.z += 1.0f;
 			if (right)
-				v.x -= 1.0f;
-			if (left)
 				v.x += 1.0f;
+			if (left)
+				v.x -= 1.0f;
 			glm::vec3 v2(camera.transform.matrix() * v * 50.0f * delta);
 			camera.transform.position += v2;
 

@@ -2,12 +2,15 @@
 
 #include <vulkan/vulkan_core.h>
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/matrix.hpp"
 
 #include "transform.hpp"
+
+#include <iostream>
 
 namespace gfx {
 
@@ -36,13 +39,15 @@ struct Camera {
 			cached_projection = glm::perspective(glm::radians(fov), width / height, depth_min, depth_max);
 			break;
 		case ORTHOGRAPHIC:
-			// not working for some reason
-			cached_projection = glm::ortho(0.0f, width, height, 0.0f);
+			cached_projection = glm::ortho(
+					-width / 2.0f, width / 2.0f,
+					-height / 2.0f, height / 2.0f,
+					depth_max, depth_min);
 			break;
 		}
 
 		// glm adjustment for vulkan coordinate system
-		cached_projection[1][1] *= -1;
+		//cached_projection[1][1] *= -1;
 		cache_good = true;
 		return cached_projection * glm::inverse(transform.matrix());
 	}
