@@ -4,13 +4,6 @@
 #include "frame_data.hpp"
 #include "uniform_buffer_object.hpp"
 
-#define GLM_FORCE_RADIANS
-#include <glm/ext/matrix_clip_space.hpp>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/trigonometric.hpp>
-
-#include <chrono>
 #include <cstring>
 
 namespace gfx {
@@ -44,32 +37,10 @@ struct Uniform {
 
 	void update(
 		const VkDevice& device,
-		VkExtent2D extent,
+		UniformBufferObject new_ubo,
 		uint32_t current_image)
 	{
-		static auto start_time = std::chrono::high_resolution_clock::now();
-
-		auto current_time = std::chrono::high_resolution_clock::now();
-		float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
-
-		UniformBufferObject ubo {};
-		ubo.model = glm::rotate(
-			glm::mat4(1.0f),
-			time * glm::radians(90.0f),
-			glm::vec3(0.0f, 0.0f, 1.0f));
-
-		ubo.view = glm::lookAt(
-			glm::vec3(2.0f, 2.0f, 2.0f),
-			glm::vec3(0.0f, 0.0f, 0.0f),
-			glm::vec3(0.0f, 0.0f, 1.0f));
-
-		ubo.projection = glm::perspective(
-			glm::radians(45.0f),
-			((float)extent.width / (float)extent.height),
-			0.1f,
-			10.0f);
-		ubo.projection[1][1] *= -1;
-
+		ubo = new_ubo;
 		void* data;
 		auto& memory = buffer[current_image].memory;
 		vkMapMemory(device, memory, 0, sizeof(ubo), 0, &data);

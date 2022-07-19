@@ -347,34 +347,8 @@ void Renderer::init_base_descriptor(const Device& device) {
 void Renderer::record_command_buffer(
 	VkCommandBuffer& command_buffer,
 	const Mesh& mesh,
-	const Material& material,
-	int image_index)
+	const Material& material)
 {
-	VkCommandBufferBeginInfo begin_info {};
-	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	begin_info.flags = 0;
-	begin_info.pInheritanceInfo = nullptr;
-
-	if (vkBeginCommandBuffer(command_buffer, &begin_info) != VK_SUCCESS)
-		throw std::runtime_error("failed to begin recording command buffer");
-
-	VkRenderPassBeginInfo render_pass_info {};
-	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	render_pass_info.renderPass = render_pass;
-	render_pass_info.framebuffer = framebuffers[image_index];
-	render_pass_info.renderArea.offset = { 0, 0 };
-	render_pass_info.renderArea.extent = extent;
-
-	std::array<VkClearValue, 2> clear_values {};
-	clear_values[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
-	clear_values[1].depthStencil = { 1.0f, 0 };
-
-	render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
-	render_pass_info.pClearValues = clear_values.data();
-
-	vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
-
 	vkCmdBindDescriptorSets(
 		command_buffer,
 		VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -394,6 +368,8 @@ void Renderer::record_command_buffer(
 		&material.descriptor_set[frames.index],
 		0,
 		nullptr);
+
+	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
 
 	VkBuffer vertex_buffers[] = { mesh.vertex_buffer.buffer };
 	VkDeviceSize offsets[] = { 0 };
@@ -415,10 +391,6 @@ void Renderer::record_command_buffer(
 	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
 	vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(mesh.indices.size()), 1, 0, 0, 0);
-	vkCmdEndRenderPass(command_buffer);
-
-	if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
-		throw std::runtime_error("failed to record command buffer");
 }
 
 void Renderer::recreate_swap_chain(Window& window, Device& device)
@@ -448,16 +420,11 @@ void Renderer::recreate_swap_chain(Window& window, Device& device)
 	init_framebuffers(device.logical_device);
 }
 
-void Renderer::draw(
-	Window& window,
-	Device& device,
-	Mesh& mesh,
-	Material& material)
+void Renderer::setup_draw(Window& window, Device& device)
 {
 	auto frame = frames.current_frame();
 	vkWaitForFences(device.logical_device, 1, &frame.in_flight_fence, VK_TRUE, UINT64_MAX);
 
-	uint32_t image_index;
 	auto result = vkAcquireNextImageKHR(
 		device.logical_device,
 		swap_chain,
@@ -480,14 +447,50 @@ void Renderer::draw(
 	}
 
 	vkResetFences(device.logical_device, 1, &frame.in_flight_fence);
-
-	//mesh.update_uniform_buffer(device.logical_device, extent, current_frame);
 	vkResetCommandBuffer(frame.command_buffer, 0);
+
+	VkCommandBufferBeginInfo begin_info {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = 0;
+	begin_info.pInheritanceInfo = nullptr;
+
+	if (vkBeginCommandBuffer(frame.command_buffer, &begin_info) != VK_SUCCESS)
+		throw std::runtime_error("failed to begin recording command buffer");
+
+	VkRenderPassBeginInfo render_pass_info {};
+	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	render_pass_info.renderPass = render_pass;
+	render_pass_info.framebuffer = framebuffers[image_index];
+	render_pass_info.renderArea.offset = { 0, 0 };
+	render_pass_info.renderArea.extent = extent;
+
+	std::array<VkClearValue, 2> clear_values {};
+	clear_values[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+	clear_values[1].depthStencil = { 1.0f, 0 };
+
+	render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+	render_pass_info.pClearValues = clear_values.data();
+
+	vkCmdBeginRenderPass(frame.command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+}
+
+void Renderer::draw(Mesh& mesh, Material& material)
+{
 	record_command_buffer(
-		frame.command_buffer,
+		frames.current_frame().command_buffer,
 		mesh,
-		material,
-		image_index);
+		material);
+}
+
+void Renderer::present_draw(Window& window, Device& device)
+{
+	auto frame = frames.current_frame();
+
+	vkCmdEndRenderPass(frame.command_buffer);
+
+	if (vkEndCommandBuffer(frame.command_buffer) != VK_SUCCESS)
+		throw std::runtime_error("failed to record command buffer");
 
 	VkSubmitInfo submit_info {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -526,7 +529,7 @@ void Renderer::draw(
 	// need to figure out why setting pNext got vkQueuePresentKHR to work
 	present_info.pNext = nullptr;
 
-	result = vkQueuePresentKHR(device.present_queue_family.queue, &present_info);
+	auto result = vkQueuePresentKHR(device.present_queue_family.queue, &present_info);
 
 	switch (result) {
 	case VK_SUCCESS:

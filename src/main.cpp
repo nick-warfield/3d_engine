@@ -1,22 +1,27 @@
-
+#include "glm/ext/matrix_transform.hpp"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan_core.h>
 
-#include <glm/glm.hpp>
+#define GLM_FORCE_RADIANS
+#include "glm/ext/matrix_clip_space.hpp"
 #include "glm/fwd.hpp"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/trigonometric.hpp"
 
-#include "constants.hpp"
-#include "window.hpp"
-#include "device.hpp"
-#include "renderer.hpp"
 #include "buffer.hpp"
-#include "vertex.hpp"
-#include "texture.hpp"
+#include "constants.hpp"
+#include "device.hpp"
 #include "mesh.hpp"
+#include "renderer.hpp"
+#include "texture.hpp"
+#include "vertex.hpp"
+#include "window.hpp"
 
-#include <vector>
 #include <array>
+#include <chrono>
+#include <vector>
 
 static std::filesystem::path root_path;
 const std::filesystem::path& gfx::Root::path(root_path);
@@ -32,43 +37,145 @@ int main(int argc, char** argv)
 	Device device;
 	Renderer renderer;
 
-	Mesh mesh;
-	//Texture texture;
-	//Uniform uniform;
-	Material material;
+	Mesh cube, sphere;
+	Material material1, material2;
+
+	UniformBufferObject camera {
+		glm::rotate(
+			glm::mat4(1.0f),
+			glm::radians(0.0f),
+			glm::vec3(0.0f, 0.0f, 1.0f)),
+		glm::lookAt(
+			glm::vec3(5.0f, 2.0f, 2.0f),
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, 0.0f, 1.0f)),
+		glm::perspective(
+			glm::radians(45.0f),
+			((float)renderer.extent.width / (float)renderer.extent.height),
+			0.1f,
+			10.0f)
+	};
+	camera.projection[1][1] *= -1;
+
+	UniformBufferObject transform1 {
+		glm::translate(
+			glm::mat4(1.0f),
+			glm::vec3(0.0f, 5.0f, 0.0f)),
+		glm::rotate(
+			glm::mat4(1.0),
+			glm::radians(0.0f),
+			glm::vec3(0.0, 0.0, 1.0)),
+		glm::scale(
+			glm::mat4(1.0f),
+			glm::vec3(1.0f))
+	};
+
+	UniformBufferObject transform2 {
+		glm::translate(
+			glm::mat4(1.0f),
+			glm::vec3(0.0f, -2.0f, 2.0f)),
+		glm::rotate(
+			glm::mat4(1.0),
+			glm::radians(0.0f),
+			glm::vec3(0.0, 0.0, 1.0)),
+		glm::scale(
+			glm::mat4(1.0f),
+			glm::vec3(1.0f))
+	};
+
+	auto rotate = [renderer]() {
+		static auto start_time = std::chrono::high_resolution_clock::now();
+
+		auto current_time = std::chrono::high_resolution_clock::now();
+		float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+
+		UniformBufferObject ubo {};
+		ubo.model = glm::rotate(
+			glm::mat4(1.0f),
+			time * glm::radians(90.0f),
+			glm::vec3(0.0f, 0.0f, 1.0f));
+
+		ubo.view = glm::lookAt(
+			glm::vec3(2.0f, 2.0f, 2.0f),
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, 0.0f, 1.0f));
+
+		ubo.projection = glm::perspective(
+			glm::radians(45.0f),
+			((float)renderer.extent.width / (float)renderer.extent.height),
+			0.1f,
+			10.0f);
+		ubo.projection[1][1] *= -1;
+
+		return ubo;
+	};
 
 	try {
 		window.init("Vulkan Project", WIDTH, HEIGHT);
 		device.init(window.instance, window.surface);
 		renderer.init(window, device);
 
-		mesh.init(device, MODEL_PATH);
-		//uniform.init(device);
-		//texture.init(device);
-		material.init(
-				device,
-				renderer.render_pass,
-				renderer.descriptor_set_layout,
-				TEXTURE_PATH,
-				"shader_vert.spv",
-				"white_out_frag.spv");
+		UniformBufferObject camera {
+			glm::rotate(
+				glm::mat4(1.0f),
+				glm::radians(0.0f),
+				glm::vec3(0.0f, 0.0f, 1.0f)),
+			glm::lookAt(
+				glm::vec3(10.0f, 2.0f, 2.0f),
+				glm::vec3(0.0f, 0.0f, 0.0f),
+				glm::vec3(0.0f, 0.0f, 1.0f)),
+			glm::perspective(
+				glm::radians(45.0f),
+				((float)renderer.extent.width / (float)renderer.extent.height),
+				0.1f,
+				10.0f)
+		};
+		camera.projection[1][1] *= -1;
+
+		sphere.init(device, "sphere.obj");
+		cube.init(device, "cube.obj");
+
+		material1.init(
+			device,
+			renderer.render_pass,
+			renderer.descriptor_set_layout,
+			"viking_room.png",
+			"shader_vert.spv",
+			"shader_frag.spv");
+
+		material2.init(
+			device,
+			renderer.render_pass,
+			renderer.descriptor_set_layout,
+			"texture.jpg",
+			"shader_vert.spv",
+			"shader_frag.spv");
+
+		renderer.uniform.update(device.logical_device, camera, renderer.frames.index);
+		renderer.uniform.update(device.logical_device, camera, renderer.frames.index + 1);
+
+		material1.uniform.update(device.logical_device, transform1, renderer.frames.index);
+		material1.uniform.update(device.logical_device, transform1, renderer.frames.index + 1);
+
+		material2.uniform.update(device.logical_device, transform2, renderer.frames.index);
+		material2.uniform.update(device.logical_device, transform2, renderer.frames.index + 1);
 
 		// main loop
 		while (!glfwWindowShouldClose(window.glfw_window)) {
 			glfwPollEvents();
-			material.uniform.update(
-					device.logical_device,
-					renderer.extent,
-					renderer.frames.index);
-			renderer.draw(window, device, mesh, material);
+
+			renderer.setup_draw(window, device);
+			renderer.draw(sphere, material1);
+			renderer.draw(cube, material2);
+			renderer.present_draw(window, device);
 		}
 		vkDeviceWaitIdle(device.logical_device);
 
 		// cleanup, reverse order of initiliztion
-		//texture.deinit(device.logical_device);
-		//uniform.deinit(device.logical_device);
-		material.deinit(device.logical_device);
-		mesh.deinit(device.logical_device);
+		material1.deinit(device.logical_device);
+		material2.deinit(device.logical_device);
+		sphere.deinit(device.logical_device);
+		cube.deinit(device.logical_device);
 
 		renderer.deinit(device.logical_device);
 		device.deinit();

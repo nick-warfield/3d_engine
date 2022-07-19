@@ -18,6 +18,7 @@ struct Device;
 struct Mesh;
 
 struct Renderer {
+	uint32_t image_index;
 	VkFormat format;
 	VkExtent2D extent;
 	bool framebuffer_resized = false;
@@ -42,7 +43,10 @@ struct Renderer {
 
 	void init(const Window& window, const Device& device);
 	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
-	void draw(Window& window, Device& device, Mesh& mesh, Material& material);
+
+	void setup_draw(Window& window, Device& device);
+	void draw(Mesh& mesh, Material& material);
+	void present_draw(Window& window, Device& device);
 
 private:
 	void init_swap_chain(const Device& device, const Window& window);
@@ -56,8 +60,7 @@ private:
 	void record_command_buffer(
 		VkCommandBuffer& command_buffer,
 		const Mesh& mesh,
-		const Material& material,
-		int image_index);
+		const Material& material);
 	void recreate_swap_chain(Window&, Device&);
 };
 
