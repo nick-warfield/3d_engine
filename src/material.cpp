@@ -11,26 +11,28 @@
 
 namespace gfx {
 
-void Material::init(
-	const Device& device,
-	const VkRenderPass& render_pass,
-	VkDescriptorSetLayout base_layout,
-	std::string texture_name,
-	std::string vertex_shader_name,
-	std::string fragment_shader_name)
-{
-	auto vert_shader = load_shader(device.logical_device, vertex_shader_name);
-	auto frag_shader = load_shader(device.logical_device, fragment_shader_name);
-
-	uniform.init(device);
-	texture.init(device, texture_name);
-
-	init_descriptor_set(device.logical_device);
-	init_pipeline(device, render_pass, base_layout, vert_shader, frag_shader);
-
-	vkDestroyShaderModule(device.logical_device, vert_shader, nullptr);
-	vkDestroyShaderModule(device.logical_device, frag_shader, nullptr);
-}
+//template <typename T>
+//void Material::init(
+//	const Device& device,
+//	const VkRenderPass& render_pass,
+//	VkDescriptorSetLayout base_layout,
+//	T& ubo,
+//	std::string texture_name,
+//	std::string vertex_shader_name,
+//	std::string fragment_shader_name)
+//{
+//	auto vert_shader = load_shader(device.logical_device, vertex_shader_name);
+//	auto frag_shader = load_shader(device.logical_device, fragment_shader_name);
+//
+//	uniform.init(device, ubo);
+//	texture.init(device, texture_name);
+//
+//	init_descriptor_set(device.logical_device);
+//	init_pipeline(device, render_pass, base_layout, vert_shader, frag_shader);
+//
+//	vkDestroyShaderModule(device.logical_device, vert_shader, nullptr);
+//	vkDestroyShaderModule(device.logical_device, frag_shader, nullptr);
+//}
 
 void Material::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator)
 {

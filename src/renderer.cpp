@@ -20,32 +20,29 @@
 
 namespace gfx {
 
-static void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
-{
-	auto framebuffer_resized = reinterpret_cast<bool*>(glfwGetWindowUserPointer(window));
-	*framebuffer_resized = true;
-	(void)width;
-	(void)height;
-}
 
-void Renderer::init(const Window& window, const Device& device, Camera* p_camera)
-{
-	glfwSetWindowUserPointer(window.glfw_window, &framebuffer_resized);
-	glfwSetFramebufferSizeCallback(window.glfw_window, framebuffer_resize_callback);
-
-	init_swap_chain(device, window);
-
-	auto dev = device.logical_device;
-	init_image_views(dev);
-	init_render_pass(device);
-	init_depth_image(device);
-	init_msaa_image(device);
-	init_framebuffers(dev);
-	init_base_descriptor(device);
-
-	camera = p_camera;
-	frames.init(device);
-}
+//template <typename T>
+//void Renderer::init(const Window& window, const Device& device, Camera* p_camera, T& ubo)
+//{
+//	glfwSetWindowUserPointer(window.glfw_window, &framebuffer_resized);
+//	glfwSetFramebufferSizeCallback(window.glfw_window, framebuffer_resize_callback);
+//
+//	init_swap_chain(device, window);
+//
+//	auto dev = device.logical_device;
+//	init_image_views(dev);
+//	init_render_pass(device);
+//	init_depth_image(device);
+//	init_msaa_image(device);
+//	init_framebuffers(dev);
+//
+//	texture.init(device, "viking_room.png");
+//	uniform.init(device, ubo);
+//	init_base_descriptor(device);
+//
+//	camera = p_camera;
+//	frames.init(device);
+//}
 
 void Renderer::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator)
 {
@@ -58,8 +55,8 @@ void Renderer::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllo
 
 	vkDestroyRenderPass(device, render_pass, pAllocator);
 
-	uniform.deinit(device, pAllocator);
 	texture.deinit(device, pAllocator);
+	uniform.deinit(device, pAllocator);
 	vkDestroyDescriptorPool(device, descriptor_pool, pAllocator);
 	vkDestroyDescriptorSetLayout(device, descriptor_set_layout, pAllocator);
 
@@ -336,9 +333,6 @@ void Renderer::init_base_descriptor(const Device& device)
 {
 	descriptor_pool = make_descriptor_pool(device.logical_device);
 	descriptor_set_layout = make_default_descriptor_layout(device.logical_device);
-
-	texture.init(device, "viking_room.png");
-	uniform.init(device);
 
 	descriptor_set = make_descriptor_set(
 		device.logical_device,

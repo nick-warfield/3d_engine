@@ -12,6 +12,9 @@ struct Transform {
 	glm::quat rotation = glm::quat(0.0f, 0.0f, 0.0f, 1.0f);
 	glm::vec3 scale = glm::vec3(1.0f);
 
+	// +x = right
+	// +y = up
+	// right handed
 	glm::mat4 matrix() const
 	{
 		return glm::translate(glm::mat4(1.0f), -position)

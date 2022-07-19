@@ -54,7 +54,7 @@ VkDescriptorSetLayout make_default_descriptor_layout(const VkDevice& device)
 	ubo_layout_binding.binding = 0;
 	ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	ubo_layout_binding.descriptorCount = 1;
-	ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 	ubo_layout_binding.pImmutableSamplers = nullptr;
 
 	VkDescriptorSetLayoutBinding sampler_layout_binding {};
@@ -110,7 +110,7 @@ per_frame<VkDescriptorSet> make_descriptor_set(
 		VkDescriptorBufferInfo buffer_info {};
 		buffer_info.buffer = uniform.buffer[i].buffer;
 		buffer_info.offset = 0;
-		buffer_info.range = sizeof(uniform.ubo);
+		buffer_info.range = uniform.ubo_size;
 
 		VkDescriptorImageInfo image_info {};
 		image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;

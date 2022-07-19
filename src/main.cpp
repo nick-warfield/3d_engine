@@ -1,3 +1,4 @@
+#include "glm/detail/qualifier.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/quaternion_transform.hpp"
 #define GLFW_INCLUDE_VULKAN
@@ -76,6 +77,18 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
 	lastY = ypos;
 }
 
+struct SceneData {
+	glm::vec3 sun_color;
+	glm::vec3 sun_dir;
+	float intensity;
+};
+
+struct FloorColor {
+	glm::vec3 color;
+};
+
+struct EmptyUBO { };
+
 int main(int argc, char** argv)
 {
 	(void)argc;
@@ -85,20 +98,25 @@ int main(int argc, char** argv)
 	Device device;
 	Renderer renderer;
 
-	Mesh cube, sphere;
-	Material material1, material2;
+	Mesh cube, sphere, floor;
+	Material material1, material2, material3;
 
-	Transform transform2 {
-		glm::vec3(20.0f, -3.0f, 5.0f)
+	Transform transform1 { };
+	Transform transform2 { };
+	Transform transform3 {
+		glm::vec3(0.0f, -3.0f, 0.0f),
+		glm::quat(0.0f, 0.0f, 0.0f, 1.0f),
+		glm::vec3(20.0f, 1.0f, 20.0f)
 	};
-	Transform transform1 {
-		glm::vec3(-5.0f, 4.0f, 0.0f)
-	};
+
+	SceneData scene_data;
+	FloorColor floor_color { glm::vec3(0.3f) };
+	EmptyUBO empty;
 
 	try {
 		window.init("Vulkan Project", WIDTH, HEIGHT);
 		device.init(window.instance, window.surface);
-		renderer.init(window, device, &camera);
+		renderer.init(window, device, &camera, &scene_data);
 
 		glfwSetInputMode(window.glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		glfwSetKeyCallback(window.glfw_window, key_callback);
@@ -126,11 +144,13 @@ int main(int argc, char** argv)
 
 		sphere.init(device, "sphere.obj");
 		cube.init(device, "cube.obj");
+		floor.init(device, "quad.obj");
 
 		material1.init(
 			device,
 			renderer.render_pass,
 			renderer.descriptor_set_layout,
+			&empty,
 			"viking_room.png",
 			"shader_vert.spv",
 			"shader_frag.spv");
@@ -139,9 +159,19 @@ int main(int argc, char** argv)
 			device,
 			renderer.render_pass,
 			renderer.descriptor_set_layout,
+			&empty,
 			"texture.jpg",
 			"shader_vert.spv",
 			"shader_frag.spv");
+
+		material3.init(
+			device,
+			renderer.render_pass,
+			renderer.descriptor_set_layout,
+			&floor_color,
+			"texture.jpg",
+			"shader_vert.spv",
+			"white_out_frag.spv");
 
 		static auto start_time = std::chrono::high_resolution_clock::now();
 		float last_time = 0.0f;
@@ -156,12 +186,19 @@ int main(int argc, char** argv)
 							 .count();
 			float delta = last_time - time;
 
+			renderer.uniform.update(
+					device.logical_device,
+					renderer.frames.index);
+
 			transform2.rotation = glm::rotate(
 				transform2.rotation,
 				glm::radians(0.01f),
 				glm::normalize(glm::vec3(1.0f, 1.3f, 0.4f)));
 
-			transform1.position = glm::vec3(10 * (glm::sin(time)), 3.0f, 0.0f);
+			transform1.position = glm::vec3(
+					10 * (glm::sin(time)),
+					0.0f,
+					10 * (glm::cos(time)));
 
 			auto v = glm::vec4(0.0f);
 			if (forward)
@@ -178,6 +215,7 @@ int main(int argc, char** argv)
 			renderer.setup_draw(window, device, material1.pipeline_layout);
 			renderer.draw(transform1, sphere, material1);
 			renderer.draw(transform2, cube, material2);
+			renderer.draw(transform3, floor, material3);
 			renderer.present_draw(window, device);
 
 			last_time = time;
@@ -187,8 +225,10 @@ int main(int argc, char** argv)
 		// cleanup, reverse order of initiliztion
 		material1.deinit(device.logical_device);
 		material2.deinit(device.logical_device);
+		material3.deinit(device.logical_device);
 		sphere.deinit(device.logical_device);
 		cube.deinit(device.logical_device);
+		floor.deinit(device.logical_device);
 
 		renderer.deinit(device.logical_device);
 		device.deinit();
