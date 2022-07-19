@@ -28,7 +28,7 @@ static void framebuffer_resize_callback(GLFWwindow* window, int width, int heigh
 	(void)height;
 }
 
-void Renderer::init(const Window& window, const Device& device)
+void Renderer::init(const Window& window, const Device& device, Camera* p_camera)
 {
 	glfwSetWindowUserPointer(window.glfw_window, &framebuffer_resized);
 	glfwSetFramebufferSizeCallback(window.glfw_window, framebuffer_resize_callback);
@@ -43,19 +43,7 @@ void Renderer::init(const Window& window, const Device& device)
 	init_framebuffers(dev);
 	init_base_descriptor(device);
 
-	camera.width = extent.width;
-	camera.height = extent.height;
-	camera.fov = 65.0f;
-	camera.depth_min = 0.1f;
-	camera.depth_max = 100.0f;
-	camera.type = Camera::PERSPECTIVE;
-
-	camera.transform.position = glm::vec3(0.0f, -6.0f, 15.0f);
-	camera.transform.rotation = glm::rotate(
-			camera.transform.rotation,
-			glm::radians(-20.0f),
-			glm::vec3(1.0f, 0.0f, 0.0f));
-
+	camera = p_camera;
 	frames.init(device);
 }
 
@@ -376,7 +364,7 @@ void Renderer::record_command_buffer(
 		0,
 		nullptr);
 
-	glm::mat4 matrix = camera.matrix() * transform.matrix();
+	glm::mat4 matrix = camera->matrix() * transform.matrix();
 	vkCmdPushConstants(
 			command_buffer,
 			material.pipeline_layout,
@@ -419,8 +407,9 @@ void Renderer::recreate_swap_chain(Window& window, Device& device)
 	}
 
 	vkDeviceWaitIdle(device.logical_device);
-	camera.width = width;
-	camera.height = height;
+	camera->width = width;
+	camera->height = height;
+	camera->cache_good = false;
 
 	// Need to cleanup old stuff first
 	depth_image.deinit(device.logical_device, nullptr);

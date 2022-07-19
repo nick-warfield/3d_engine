@@ -9,6 +9,7 @@
 #include "glm/fwd.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/trigonometric.hpp"
+#include "glm/gtc/quaternion.hpp"
 
 #include "buffer.hpp"
 #include "constants.hpp"
@@ -37,6 +38,7 @@ int main(int argc, char** argv)
 	Window window;
 	Device device;
 	Renderer renderer;
+	Camera camera;
 
 	Mesh cube, sphere;
 	Material material1, material2;
@@ -51,7 +53,20 @@ int main(int argc, char** argv)
 	try {
 		window.init("Vulkan Project", WIDTH, HEIGHT);
 		device.init(window.instance, window.surface);
-		renderer.init(window, device);
+		renderer.init(window, device, &camera);
+
+		camera.width = renderer.extent.width;
+		camera.height = renderer.extent.height;
+		camera.fov = 65.0f;
+		camera.depth_min = 0.1f;
+		camera.depth_max = 100.0f;
+		camera.type = Camera::PERSPECTIVE;
+
+		camera.transform.position = glm::vec3(0.0f, -6.0f, 15.0f);
+		camera.transform.rotation = glm::rotate(
+				camera.transform.rotation,
+				glm::radians(-20.0f),
+				glm::vec3(1.0f, 0.0f, 0.0f));
 
 		sphere.init(device, "sphere.obj");
 		cube.init(device, "cube.obj");
@@ -87,6 +102,9 @@ int main(int argc, char** argv)
 					glm::normalize(glm::vec3(1.0f, 1.3f, 0.4f)));
 
 			transform1.scale = glm::vec3((1 + glm::sin(time)) / 2);
+
+			camera.transform.position.x = 5 * glm::sin(time);
+			camera.transform.position.z = 10 + 5 * glm::cos(time);
 
 			renderer.setup_draw(window, device, material1.pipeline_layout);
 			renderer.draw(transform1, sphere, material1);

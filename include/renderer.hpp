@@ -36,14 +36,14 @@ struct Renderer {
 	per_frame<VkDescriptorSet> descriptor_set;
 
 	Frames frames;
-	Camera camera;
+	Camera* camera;
 
 	// These are all associated
 	std::vector<VkImage> swap_chain_images;
 	std::vector<VkImageView> swap_chain_image_views;
 	std::vector<VkFramebuffer> framebuffers;
 
-	void init(const Window& window, const Device& device);
+	void init(const Window& window, const Device& device, Camera* p_camera);
 	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
 
 	void setup_draw(Window& window, Device& device, VkPipelineLayout pipeline_layout);
