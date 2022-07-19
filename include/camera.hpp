@@ -36,7 +36,8 @@ struct Camera {
 			cached_projection = glm::perspective(glm::radians(fov), width / height, depth_min, depth_max);
 			break;
 		case ORTHOGRAPHIC:
-			cached_projection = glm::ortho(0.0f, width, height, 0.0f, depth_min, depth_max);
+			// not working for some reason
+			cached_projection = glm::ortho(0.0f, width, height, 0.0f);
 			break;
 		}
 

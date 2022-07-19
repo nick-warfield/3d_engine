@@ -1,15 +1,16 @@
 #include "glm/ext/matrix_transform.hpp"
+#include "glm/ext/quaternion_transform.hpp"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan_core.h>
 
 #define GLM_FORCE_RADIANS
-#include "glm/glm.hpp"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/fwd.hpp"
+#include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#include "glm/trigonometric.hpp"
 #include "glm/gtc/quaternion.hpp"
+#include "glm/trigonometric.hpp"
 
 #include "buffer.hpp"
 #include "constants.hpp"
@@ -17,9 +18,9 @@
 #include "mesh.hpp"
 #include "renderer.hpp"
 #include "texture.hpp"
+#include "transform.hpp"
 #include "vertex.hpp"
 #include "window.hpp"
-#include "transform.hpp"
 
 #include <array>
 #include <chrono>
@@ -30,6 +31,51 @@ const std::filesystem::path& gfx::Root::path(root_path);
 
 using namespace gfx;
 
+bool should_exit = false;
+Camera camera;
+
+bool left = false, right = false, forward = false, backward = false;
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	(void)window;
+	(void)scancode;
+	(void)mods;
+
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+		should_exit = true;
+
+	if (key == GLFW_KEY_W)
+		forward = action != GLFW_RELEASE ? true : false;
+	if (key == GLFW_KEY_S)
+		backward = action != GLFW_RELEASE ? true : false;
+	if (key == GLFW_KEY_D)
+		right = action != GLFW_RELEASE ? true : false;
+	if (key == GLFW_KEY_A)
+		left = action != GLFW_RELEASE ? true : false;
+}
+
+float lastX = WIDTH / 2.0f, lastY = HEIGHT / 2.0f;
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	(void)window;
+	float xoffset = lastX - xpos;
+	float yoffset = lastY - ypos;
+	xoffset *= 0.05f;
+	yoffset *= 0.05f;
+
+	camera.transform.rotation = glm::rotate(
+		camera.transform.rotation,
+		glm::radians(xoffset),
+		glm::vec3(0.0f, 1.0f, 0.0f));
+	camera.transform.rotation = glm::rotate(
+		camera.transform.rotation,
+		glm::radians(yoffset),
+		glm::vec3(1.0f, 0.0f, 0.0f));
+
+	lastX = xpos;
+	lastY = ypos;
+}
+
 int main(int argc, char** argv)
 {
 	(void)argc;
@@ -38,7 +84,6 @@ int main(int argc, char** argv)
 	Window window;
 	Device device;
 	Renderer renderer;
-	Camera camera;
 
 	Mesh cube, sphere;
 	Material material1, material2;
@@ -55,6 +100,10 @@ int main(int argc, char** argv)
 		device.init(window.instance, window.surface);
 		renderer.init(window, device, &camera);
 
+		glfwSetInputMode(window.glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		glfwSetKeyCallback(window.glfw_window, key_callback);
+		glfwSetCursorPosCallback(window.glfw_window, cursor_position_callback);
+
 		camera.width = renderer.extent.width;
 		camera.height = renderer.extent.height;
 		camera.fov = 65.0f;
@@ -64,9 +113,9 @@ int main(int argc, char** argv)
 
 		camera.transform.position = glm::vec3(0.0f, -6.0f, 15.0f);
 		camera.transform.rotation = glm::rotate(
-				camera.transform.rotation,
-				glm::radians(-20.0f),
-				glm::vec3(1.0f, 0.0f, 0.0f));
+			camera.transform.rotation,
+			glm::radians(-20.0f),
+			glm::vec3(1.0f, 0.0f, 0.0f));
 
 		sphere.init(device, "sphere.obj");
 		cube.init(device, "cube.obj");
@@ -88,28 +137,43 @@ int main(int argc, char** argv)
 			"shader_frag.spv");
 
 		static auto start_time = std::chrono::high_resolution_clock::now();
+		float last_time = 0.0f;
 
 		// main loop
-		while (!glfwWindowShouldClose(window.glfw_window)) {
+		while (!should_exit && !glfwWindowShouldClose(window.glfw_window)) {
 			glfwPollEvents();
+
 			auto current_time = std::chrono::high_resolution_clock::now();
 			float time = std::chrono::duration<float, std::chrono::seconds::period>(
-					current_time - start_time).count();
+				current_time - start_time)
+							 .count();
+			float delta = last_time - time;
 
 			transform2.rotation = glm::rotate(
-					transform2.rotation,
-					glm::radians(0.01f),
-					glm::normalize(glm::vec3(1.0f, 1.3f, 0.4f)));
+				transform2.rotation,
+				glm::radians(0.01f),
+				glm::normalize(glm::vec3(1.0f, 1.3f, 0.4f)));
 
 			transform1.scale = glm::vec3((1 + glm::sin(time)) / 2);
 
-			camera.transform.position.x = 5 * glm::sin(time);
-			camera.transform.position.z = 10 + 5 * glm::cos(time);
+			auto v = glm::vec4(0.0f);
+			if (forward)
+				v.z += 1.0f;
+			if (backward)
+				v.z -= 1.0f;
+			if (right)
+				v.x -= 1.0f;
+			if (left)
+				v.x += 1.0f;
+			glm::vec3 v2(camera.transform.matrix() * v * 50.0f * delta);
+			camera.transform.position += v2;
 
 			renderer.setup_draw(window, device, material1.pipeline_layout);
 			renderer.draw(transform1, sphere, material1);
 			renderer.draw(transform2, cube, material2);
 			renderer.present_draw(window, device);
+
+			last_time = time;
 		}
 		vkDeviceWaitIdle(device.logical_device);
 
