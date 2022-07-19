@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_core.h>
 
 #define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/fwd.hpp"
 #include "glm/glm.hpp"
@@ -40,23 +41,6 @@ int main(int argc, char** argv)
 	Mesh cube, sphere;
 	Material material1, material2;
 
-	UniformBufferObject camera {
-		glm::rotate(
-			glm::mat4(1.0f),
-			glm::radians(0.0f),
-			glm::vec3(0.0f, 0.0f, 1.0f)),
-		glm::lookAt(
-			glm::vec3(5.0f, 2.0f, 2.0f),
-			glm::vec3(0.0f, 0.0f, 0.0f),
-			glm::vec3(0.0f, 0.0f, 1.0f)),
-		glm::perspective(
-			glm::radians(45.0f),
-			((float)renderer.extent.width / (float)renderer.extent.height),
-			0.1f,
-			10.0f)
-	};
-	camera.projection[1][1] *= -1;
-
 	UniformBufferObject transform1 {
 		glm::translate(
 			glm::mat4(1.0f),
@@ -83,33 +67,6 @@ int main(int argc, char** argv)
 			glm::vec3(1.0f))
 	};
 
-	auto rotate = [renderer]() {
-		static auto start_time = std::chrono::high_resolution_clock::now();
-
-		auto current_time = std::chrono::high_resolution_clock::now();
-		float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
-
-		UniformBufferObject ubo {};
-		ubo.model = glm::rotate(
-			glm::mat4(1.0f),
-			time * glm::radians(90.0f),
-			glm::vec3(0.0f, 0.0f, 1.0f));
-
-		ubo.view = glm::lookAt(
-			glm::vec3(2.0f, 2.0f, 2.0f),
-			glm::vec3(0.0f, 0.0f, 0.0f),
-			glm::vec3(0.0f, 0.0f, 1.0f));
-
-		ubo.projection = glm::perspective(
-			glm::radians(45.0f),
-			((float)renderer.extent.width / (float)renderer.extent.height),
-			0.1f,
-			10.0f);
-		ubo.projection[1][1] *= -1;
-
-		return ubo;
-	};
-
 	try {
 		window.init("Vulkan Project", WIDTH, HEIGHT);
 		device.init(window.instance, window.surface);
@@ -125,10 +82,10 @@ int main(int argc, char** argv)
 				glm::vec3(0.0f, 0.0f, 0.0f),
 				glm::vec3(0.0f, 0.0f, 1.0f)),
 			glm::perspective(
-				glm::radians(45.0f),
+				glm::radians(65.0f),
 				((float)renderer.extent.width / (float)renderer.extent.height),
 				0.1f,
-				10.0f)
+				100.0f)
 		};
 		camera.projection[1][1] *= -1;
 
@@ -160,9 +117,25 @@ int main(int argc, char** argv)
 		material2.uniform.update(device.logical_device, transform2, renderer.frames.index);
 		material2.uniform.update(device.logical_device, transform2, renderer.frames.index + 1);
 
+		static auto start_time = std::chrono::high_resolution_clock::now();
+
 		// main loop
 		while (!glfwWindowShouldClose(window.glfw_window)) {
 			glfwPollEvents();
+			auto current_time = std::chrono::high_resolution_clock::now();
+			float time = std::chrono::duration<float, std::chrono::seconds::period>(
+					current_time - start_time).count();
+
+			auto ubo = material1.uniform.ubo;
+			ubo.projection = glm::scale(glm::mat4(1.0f), glm::vec3((1 + glm::sin(time)) / 2));
+			material1.uniform.update(device.logical_device, ubo, renderer.frames.index);
+
+			ubo = material2.uniform.ubo;
+			ubo.view = glm::rotate(
+					ubo.view,
+					glm::radians(0.01f),
+					glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)));
+			material2.uniform.update(device.logical_device, ubo, renderer.frames.index);
 
 			renderer.setup_draw(window, device);
 			renderer.draw(sphere, material1);

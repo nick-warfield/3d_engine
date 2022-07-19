@@ -22,7 +22,7 @@ layout(location = 0) out vec2 frag_tex_coord;
 
 void main() {
 	mat4 mvp = camera.projection * camera.view * camera.model;
-	mat4 trans = transform.scale * transform.rotation * transform.position;
+	mat4 trans = transform.position * transform.rotation * transform.scale;
 
 	gl_Position = mvp * trans * vec4(in_position, 1.0);
 	frag_tex_coord = tex_coord;
