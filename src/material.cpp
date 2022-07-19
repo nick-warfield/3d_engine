@@ -171,12 +171,17 @@ void Material::init_pipeline(
 		descriptor_set_layout   // instance set
 	};
 
+	VkPushConstantRange push_constant_range {};
+	push_constant_range.offset = 0;
+	push_constant_range.size = sizeof(glm::mat4);
+	push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
 	VkPipelineLayoutCreateInfo pipeline_layout_info {};
 	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipeline_layout_info.setLayoutCount = 2;
 	pipeline_layout_info.pSetLayouts = layouts;
-	pipeline_layout_info.pushConstantRangeCount = 0;
-	pipeline_layout_info.pPushConstantRanges = nullptr;
+	pipeline_layout_info.pushConstantRangeCount = 1;
+	pipeline_layout_info.pPushConstantRanges = &push_constant_range;
 
 	if (vkCreatePipelineLayout(device.logical_device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
 		throw std::runtime_error("failed to create pipeline layout");

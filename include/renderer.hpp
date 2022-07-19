@@ -10,6 +10,7 @@
 #include "constants.hpp"
 #include "frame_data.hpp"
 #include "material.hpp"
+#include "camera.hpp"
 
 namespace gfx {
 
@@ -35,6 +36,7 @@ struct Renderer {
 	per_frame<VkDescriptorSet> descriptor_set;
 
 	Frames frames;
+	Camera camera;
 
 	// These are all associated
 	std::vector<VkImage> swap_chain_images;
@@ -44,8 +46,8 @@ struct Renderer {
 	void init(const Window& window, const Device& device);
 	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
 
-	void setup_draw(Window& window, Device& device);
-	void draw(Mesh& mesh, Material& material);
+	void setup_draw(Window& window, Device& device, VkPipelineLayout pipeline_layout);
+	void draw(const Transform& transform, const Mesh& mesh, const Material& material);
 	void present_draw(Window& window, Device& device);
 
 private:
@@ -56,9 +58,11 @@ private:
 	void init_depth_image(const Device& device);
 	void init_msaa_image(const Device& device);
 	void init_base_descriptor(const Device& device);
+	void init_camera();
 
 	void record_command_buffer(
 		VkCommandBuffer& command_buffer,
+		const Transform& transform,
 		const Mesh& mesh,
 		const Material& material);
 	void recreate_swap_chain(Window&, Device&);

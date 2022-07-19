@@ -2,10 +2,12 @@
 #include "buffer.hpp"
 #include "constants.hpp"
 #include "device.hpp"
+#include "glm/ext/quaternion_transform.hpp"
 #include "mesh.hpp"
 #include "texture.hpp"
 #include "util.hpp"
 #include "vertex.hpp"
+#include "camera.hpp"
 #include "window.hpp"
 
 #include <array>
@@ -40,6 +42,19 @@ void Renderer::init(const Window& window, const Device& device)
 	init_msaa_image(device);
 	init_framebuffers(dev);
 	init_base_descriptor(device);
+
+	camera.width = extent.width;
+	camera.height = extent.height;
+	camera.fov = 65.0f;
+	camera.depth_min = 0.1f;
+	camera.depth_max = 100.0f;
+	camera.type = Camera::PERSPECTIVE;
+
+	camera.transform.position = glm::vec3(0.0f, -6.0f, 15.0f);
+	camera.transform.rotation = glm::rotate(
+			camera.transform.rotation,
+			glm::radians(-20.0f),
+			glm::vec3(1.0f, 0.0f, 0.0f));
 
 	frames.init(device);
 }
@@ -347,19 +362,10 @@ void Renderer::init_base_descriptor(const Device& device)
 
 void Renderer::record_command_buffer(
 	VkCommandBuffer& command_buffer,
+	const Transform& transform,
 	const Mesh& mesh,
 	const Material& material)
 {
-	vkCmdBindDescriptorSets(
-		command_buffer,
-		VK_PIPELINE_BIND_POINT_GRAPHICS,
-		material.pipeline_layout,
-		0,
-		1,
-		&descriptor_set[frames.index],
-		0,
-		nullptr);
-
 	vkCmdBindDescriptorSets(
 		command_buffer,
 		VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -369,6 +375,15 @@ void Renderer::record_command_buffer(
 		&material.descriptor_set[frames.index],
 		0,
 		nullptr);
+
+	glm::mat4 matrix = camera.matrix() * transform.matrix();
+	vkCmdPushConstants(
+			command_buffer,
+			material.pipeline_layout,
+			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+			0,
+			sizeof(glm::mat4),
+			&matrix);
 
 	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
 
@@ -404,6 +419,8 @@ void Renderer::recreate_swap_chain(Window& window, Device& device)
 	}
 
 	vkDeviceWaitIdle(device.logical_device);
+	camera.width = width;
+	camera.height = height;
 
 	// Need to cleanup old stuff first
 	depth_image.deinit(device.logical_device, nullptr);
@@ -422,7 +439,7 @@ void Renderer::recreate_swap_chain(Window& window, Device& device)
 	init_framebuffers(device.logical_device);
 }
 
-void Renderer::setup_draw(Window& window, Device& device)
+void Renderer::setup_draw(Window& window, Device& device, VkPipelineLayout pipeline_layout)
 {
 	auto frame = frames.current_frame();
 	vkWaitForFences(device.logical_device, 1, &frame.in_flight_fence, VK_TRUE, UINT64_MAX);
@@ -474,12 +491,22 @@ void Renderer::setup_draw(Window& window, Device& device)
 	render_pass_info.pClearValues = clear_values.data();
 
 	vkCmdBeginRenderPass(frame.command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindDescriptorSets(
+		frame.command_buffer,
+		VK_PIPELINE_BIND_POINT_GRAPHICS,
+		pipeline_layout,
+		0,
+		1,
+		&descriptor_set[frames.index],
+		0,
+		nullptr);
 }
 
-void Renderer::draw(Mesh& mesh, Material& material)
+void Renderer::draw(const Transform& transform, const Mesh& mesh, const Material& material)
 {
 	record_command_buffer(
 		frames.current_frame().command_buffer,
+		transform,
 		mesh,
 		material);
 }
