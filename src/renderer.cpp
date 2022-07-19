@@ -2,11 +2,11 @@
 #include "buffer.hpp"
 #include "constants.hpp"
 #include "device.hpp"
+#include "mesh.hpp"
 #include "texture.hpp"
+#include "util.hpp"
 #include "vertex.hpp"
 #include "window.hpp"
-#include "mesh.hpp"
-#include "util.hpp"
 
 #include <array>
 #include <vulkan/vulkan_core.h>
@@ -329,7 +329,8 @@ void Renderer::init_framebuffers(const VkDevice& device)
 	}
 }
 
-void Renderer::init_base_descriptor(const Device& device) {
+void Renderer::init_base_descriptor(const Device& device)
+{
 	descriptor_pool = make_descriptor_pool(device.logical_device);
 	descriptor_set_layout = make_default_descriptor_layout(device.logical_device);
 
@@ -337,11 +338,11 @@ void Renderer::init_base_descriptor(const Device& device) {
 	uniform.init(device);
 
 	descriptor_set = make_descriptor_set(
-			device.logical_device,
-			descriptor_pool,
-			descriptor_set_layout,
-			texture,
-			uniform);
+		device.logical_device,
+		descriptor_pool,
+		descriptor_set_layout,
+		texture,
+		uniform);
 }
 
 void Renderer::record_command_buffer(
@@ -417,6 +418,7 @@ void Renderer::recreate_swap_chain(Window& window, Device& device)
 	init_swap_chain(device, window);
 	init_image_views(device.logical_device);
 	init_depth_image(device);
+	init_msaa_image(device);
 	init_framebuffers(device.logical_device);
 }
 
@@ -472,7 +474,6 @@ void Renderer::setup_draw(Window& window, Device& device)
 	render_pass_info.pClearValues = clear_values.data();
 
 	vkCmdBeginRenderPass(frame.command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-
 }
 
 void Renderer::draw(Mesh& mesh, Material& material)
