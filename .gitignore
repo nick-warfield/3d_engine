@@ -4,7 +4,6 @@ src/obj
 tests/obj
 tests/reports
 tests/.test
-resources
 tags
 
 # Prerequisites
