@@ -90,7 +90,12 @@ void Mesh::load_model(std::string filename)
 				attribute.vertices[3 * index.vertex_index + 1],
 				attribute.vertices[3 * index.vertex_index + 2]
 			};
-			vertex.tex_coord = {
+			vertex.normal = {
+				attribute.normals[3 * index.normal_index + 0],
+				attribute.normals[3 * index.normal_index + 1],
+				attribute.normals[3 * index.normal_index + 2]
+			};
+			vertex.uv = {
 				attribute.texcoords[2 * index.texcoord_index + 0],
 				1.0f - attribute.texcoords[2 * index.texcoord_index + 1]
 			};

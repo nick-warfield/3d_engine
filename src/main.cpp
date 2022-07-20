@@ -78,16 +78,20 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
 }
 
 struct SceneData {
-	glm::vec3 sun_color;
-	glm::vec3 sun_dir;
-	float intensity;
+	glm::vec3 sun_color = glm::vec3(1.0f, 1.0f, 1.0f);
+	glm::vec3 sun_dir = glm::normalize(glm::vec3(60, 60, 60));
+	float intensity = 0.5f;
+	glm::vec3 ambient_color = glm::vec3(0.01f);
 };
 
 struct FloorColor {
 	glm::vec3 color;
 };
 
-struct EmptyUBO { };
+struct SpecularData {
+	glm::vec3 camera_direction;
+	float width = 5.0f;
+};
 
 int main(int argc, char** argv)
 {
@@ -111,7 +115,7 @@ int main(int argc, char** argv)
 
 	SceneData scene_data;
 	FloorColor floor_color { glm::vec3(0.3f) };
-	EmptyUBO empty;
+	SpecularData spec1, spec2;
 
 	try {
 		window.init("Vulkan Project", WIDTH, HEIGHT);
@@ -128,19 +132,7 @@ int main(int argc, char** argv)
 		camera.depth_min = 0.1f;
 		camera.depth_max = 100.0f;
 		camera.type = Camera::PERSPECTIVE;
-	
-		//camera.width = 16;
-		//camera.height = 9;
-		//camera.fov = 65.0f;
-		//camera.depth_min = 0.0f;
-		//camera.depth_max = 1000.0f;
-		//camera.type = Camera::ORTHOGRAPHIC;
-
 		camera.transform.position = glm::vec3(0.0f, 0.0f, -10.0f);
-		//camera.transform.rotation = glm::rotate(
-		//	camera.transform.rotation,
-		//	glm::radians(180.0f),
-		//	glm::vec3(0.0f, 1.0f, 0.0f));
 
 		sphere.init(device, "sphere.obj");
 		cube.init(device, "cube.obj");
@@ -150,7 +142,7 @@ int main(int argc, char** argv)
 			device,
 			renderer.render_pass,
 			renderer.descriptor_set_layout,
-			&empty,
+			&spec1,
 			"viking_room.png",
 			"shader_vert.spv",
 			"shader_frag.spv");
@@ -159,7 +151,7 @@ int main(int argc, char** argv)
 			device,
 			renderer.render_pass,
 			renderer.descriptor_set_layout,
-			&empty,
+			&spec2,
 			"texture.jpg",
 			"shader_vert.spv",
 			"shader_frag.spv");
@@ -186,6 +178,27 @@ int main(int argc, char** argv)
 							 .count();
 			float delta = last_time - time;
 
+			auto v = glm::vec4(0.0f);
+			if (forward)
+				v.z -= 1.0f;
+			if (backward)
+				v.z += 1.0f;
+			if (right)
+				v.x += 1.0f;
+			if (left)
+				v.x -= 1.0f;
+			glm::vec3 v2(camera.transform.matrix() * v * 50.0f * delta);
+			camera.transform.position += v2;
+
+			spec1.camera_direction = camera.transform.position;
+			spec2.camera_direction = camera.transform.position;
+
+			material1.uniform.update(
+					device.logical_device,
+					renderer.frames.index);
+			material2.uniform.update(
+					device.logical_device,
+					renderer.frames.index);
 			renderer.uniform.update(
 					device.logical_device,
 					renderer.frames.index);
@@ -199,18 +212,6 @@ int main(int argc, char** argv)
 					10 * (glm::sin(time)),
 					0.0f,
 					10 * (glm::cos(time)));
-
-			auto v = glm::vec4(0.0f);
-			if (forward)
-				v.z -= 1.0f;
-			if (backward)
-				v.z += 1.0f;
-			if (right)
-				v.x += 1.0f;
-			if (left)
-				v.x -= 1.0f;
-			glm::vec3 v2(camera.transform.matrix() * v * 50.0f * delta);
-			camera.transform.position += v2;
 
 			renderer.setup_draw(window, device, material1.pipeline_layout);
 			renderer.draw(transform1, sphere, material1);
