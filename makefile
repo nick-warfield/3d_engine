@@ -15,7 +15,7 @@ OPT = O3
 CFLAGS = -std=c++17 -Wall -Wextra -Wno-missing-braces -DDEBUG
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
 
-CFLAGS += -I$(INCLUDE_DIR) -I$(LIBRARY_DIR)
+CFLAGS += -I$(INCLUDE_DIR) -isystem $(LIBRARY_DIR)
 
 HEADERS = $(wildcard *, $(INCLUDE_DIR)/*.hpp)
 SOURCE = $(wildcard *, $(SOURCE_DIR)/*.cpp)
