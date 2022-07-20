@@ -1,4 +1,4 @@
-# Output and Heavy Directories
+# Output Directories
 build
 src/obj
 tests/obj
@@ -13,7 +13,6 @@ tags
 *.slo
 *.lo
 *.o
-*.obj
 
 # Precompiled Headers
 *.gch
