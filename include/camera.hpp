@@ -9,6 +9,7 @@
 #include "glm/matrix.hpp"
 
 #include "transform.hpp"
+#include "texture.hpp"
 
 #include <iostream>
 
@@ -16,6 +17,7 @@ namespace gfx {
 
 struct Camera {
 	Transform transform;
+	Texture* skybox;
 
 	bool cache_good = false;
 	glm::mat4 cached_projection = glm::mat4(1.0f);

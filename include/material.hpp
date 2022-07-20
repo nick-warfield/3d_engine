@@ -47,6 +47,11 @@ struct Material {
 
 	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
 
+	void init_skybox_pipeline(
+			const Device& device,
+			VkRenderPass render_pass,
+			VkDescriptorSetLayout base_layout);
+
 private:
 	void init_descriptor_set(const VkDevice& device);
 	void init_pipeline(

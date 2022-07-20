@@ -93,6 +93,8 @@ struct SpecularData {
 	float width = 5.0f;
 };
 
+struct Empty {} empty;
+
 int main(int argc, char** argv)
 {
 	(void)argc;
@@ -105,6 +107,10 @@ int main(int argc, char** argv)
 	Mesh cube, sphere, floor;
 	Material material1, material2, material3;
 
+	Transform trans_skybox;
+	Mesh mesh_skybox;
+	Material mat_skybox;
+
 	Transform transform1 { };
 	Transform transform2 { };
 	Transform transform3 {
@@ -114,7 +120,7 @@ int main(int argc, char** argv)
 	};
 
 	SceneData scene_data;
-	FloorColor floor_color { glm::vec3(0.3f) };
+	FloorColor floor_color { glm::vec3(0.1f) };
 	SpecularData spec1, spec2;
 
 	try {
@@ -135,8 +141,9 @@ int main(int argc, char** argv)
 		camera.transform.position = glm::vec3(0.0f, 0.0f, -10.0f);
 
 		sphere.init(device, "sphere.obj");
-		cube.init(device, "cube.obj");
+		cube.init(device, "skybox.obj");
 		floor.init(device, "quad.obj");
+		mesh_skybox.init(device, "skybox.obj");
 
 		material1.init(
 			device,
@@ -152,7 +159,7 @@ int main(int argc, char** argv)
 			renderer.render_pass,
 			renderer.descriptor_set_layout,
 			&spec2,
-			"texture.jpg",
+			"skybox.png",
 			"shader_vert.spv",
 			"shader_frag.spv");
 
@@ -164,6 +171,20 @@ int main(int argc, char** argv)
 			"texture.jpg",
 			"shader_vert.spv",
 			"white_out_frag.spv");
+
+		mat_skybox.init(
+			device,
+			renderer.render_pass,
+			renderer.descriptor_set_layout,
+			&empty,
+			"skybox.png",
+			"shader_vert.spv",
+			"skybox_frag.spv");
+
+	mat_skybox.init_skybox_pipeline(
+			device,
+			renderer.render_pass,
+			renderer.descriptor_set_layout);
 
 		static auto start_time = std::chrono::high_resolution_clock::now();
 		float last_time = 0.0f;
@@ -189,6 +210,7 @@ int main(int argc, char** argv)
 				v.x -= 1.0f;
 			glm::vec3 v2(camera.transform.matrix() * v * 50.0f * delta);
 			camera.transform.position += v2;
+			trans_skybox.position = camera.transform.position;
 
 			spec1.camera_direction = camera.transform.position;
 			spec2.camera_direction = camera.transform.position;
@@ -214,9 +236,12 @@ int main(int argc, char** argv)
 					10 * (glm::cos(time)));
 
 			renderer.setup_draw(window, device, material1.pipeline_layout);
+			renderer.draw(trans_skybox, mesh_skybox, mat_skybox);
+
 			renderer.draw(transform1, sphere, material1);
 			renderer.draw(transform2, cube, material2);
 			renderer.draw(transform3, floor, material3);
+
 			renderer.present_draw(window, device);
 
 			last_time = time;
@@ -230,6 +255,9 @@ int main(int argc, char** argv)
 		sphere.deinit(device.logical_device);
 		cube.deinit(device.logical_device);
 		floor.deinit(device.logical_device);
+
+		mat_skybox.deinit(device.logical_device);
+		mesh_skybox.deinit(device.logical_device);
 
 		renderer.deinit(device.logical_device);
 		device.deinit();
