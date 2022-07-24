@@ -2,7 +2,6 @@
 
 #include "buffer.hpp"
 #include "frame_data.hpp"
-#include "uniform_buffer_object.hpp"
 #include "util.hpp"
 #include "device.hpp"
 

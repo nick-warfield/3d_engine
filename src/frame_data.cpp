@@ -1,34 +1,34 @@
 #include "frame_data.hpp"
-#include "device.hpp"
-
 #include <vulkan/vulkan_core.h>
 #include <stdexcept>
 
-namespace gfx {
+namespace chch {
 
-void FrameData::init(const Device& device)
+VkResult FrameData::init(const Context* context)
 {
-	init_command_buffer(device);
-	init_sync_objects(device);
+	VK_CHECK(init_command_buffer(context));
+	if (res != VK_SUCCESS) return res;
+	res = init_sync_objects(context);
+
+	return res;
 }
 
-void FrameData::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator)
+void FrameData::deinit(const Context* context)
 {
-	vkDestroySemaphore(device, image_available_semaphore, pAllocator);
-	vkDestroySemaphore(device, render_finished_semaphore, pAllocator);
-	vkDestroyFence(device, in_flight_fence, pAllocator);
-	vkDestroyCommandPool(device, command_pool, pAllocator);
+	vkDestroySemaphore(context->device, image_available_semaphore, context->allocation_callbacks);
+	vkDestroySemaphore(context->device, render_finished_semaphore, context->allocation_callbacks);
+	vkDestroyFence(context->device, in_flight_fence, context->allocation_callbacks);
+	vkDestroyCommandPool(context->device, command_pool, context->allocation_callbacks);
 }
 
-void FrameData::init_command_buffer(const Device& device)
+VkResult FrameData::init_command_buffer(const Context* context)
 {
-	auto dev = device.logical_device;
 	VkCommandPoolCreateInfo pool_info {};
 	pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	pool_info.queueFamilyIndex = device.graphics_queue_family.index.value();
+	pool_info.queueFamilyIndex = context->graphics_queue.index;
 
-	if (vkCreateCommandPool(dev, &pool_info, nullptr, &command_pool) != VK_SUCCESS)
+	if (vkCreateCommandPool(context->device, &pool_info, context->allocation_callbacks, &command_pool) != VK_SUCCESS)
 		throw std::runtime_error("failed to create command pool");
 
 	VkCommandBufferAllocateInfo alloc_info {};

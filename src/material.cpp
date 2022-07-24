@@ -336,7 +336,7 @@ void Material::init_skybox_pipeline(
 	pipeline_layout_info.pushConstantRangeCount = 1;
 	pipeline_layout_info.pPushConstantRanges = &push_constant_range;
 
-	if (vkCreatePipelineLayout(device.logical_device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
+if (vkCreatePipelineLayout(device.logical_device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
 		throw std::runtime_error("failed to create pipeline layout");
 
 	VkGraphicsPipelineCreateInfo pipeline_info {};
