@@ -1,4 +1,6 @@
 #include "descriptor_builder.hpp"
+#include "texture.hpp"
+#include "uniform.hpp"
 
 namespace chch {
 
@@ -42,12 +44,18 @@ VkResult DescriptorBuilder::build(VkDescriptorSetLayout& layout, VkDescriptorSet
 	return result;
 }
 
+template <typename T>
 DescriptorBuilder DescriptorBuilder::bind_buffer(
 	uint32_t binding,
-	VkDescriptorBufferInfo* info,
+	Uniform<T>* uniform,
 	VkDescriptorType type,
 	VkShaderStageFlagBits stages)
 {
+	VkDescriptorBufferInfo info {};
+	info.buffer = uniform->buffer[0].buffer,
+	info.offset = 0;
+	info.range = sizeof(T);
+
 	VkDescriptorSetLayoutBinding layout_binding {};
 	layout_binding.binding = binding;
 	layout_binding.descriptorType = type;
@@ -62,7 +70,7 @@ DescriptorBuilder DescriptorBuilder::bind_buffer(
 	layout_write.dstArrayElement = 0;
 	layout_write.descriptorType = type;
 	layout_write.descriptorCount = 1;
-	layout_write.pBufferInfo = info;
+	layout_write.pBufferInfo = &info;
 	m_writes.push_back(layout_write);
 
 	return *this;
@@ -70,10 +78,15 @@ DescriptorBuilder DescriptorBuilder::bind_buffer(
 
 DescriptorBuilder DescriptorBuilder::bind_image(
 	uint32_t binding,
-	VkDescriptorImageInfo* info,
+	Texture* texture,
 	VkDescriptorType type,
 	VkShaderStageFlagBits stages)
 {
+	VkDescriptorImageInfo info {};
+	info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	info.imageView = texture->image.image_view;
+	info.sampler = texture->sampler;
+
 	VkDescriptorSetLayoutBinding layout_binding {};
 	layout_binding.binding = binding;
 	layout_binding.descriptorType = type;
@@ -88,7 +101,7 @@ DescriptorBuilder DescriptorBuilder::bind_image(
 	layout_write.dstArrayElement = 0;
 	layout_write.descriptorType = type;
 	layout_write.descriptorCount = 1;
-	layout_write.pImageInfo = info;
+	layout_write.pImageInfo = &info;
 	m_writes.push_back(layout_write);
 
 	return *this;

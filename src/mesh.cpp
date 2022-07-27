@@ -1,8 +1,8 @@
 #include "mesh.hpp"
-#include "constants.hpp"
+#include "context.hpp"
 #include "device.hpp"
-#include "uniform_buffer_object.hpp"
 #include "vertex.hpp"
+#include "util.hpp"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
@@ -13,55 +13,59 @@
 #include <vector>
 #include <unordered_map>
 
-namespace gfx {
+namespace chch {
 
-void Mesh::init(const Device& device, std::string filename)
+void Mesh::init(const Context* context, std::string filename)
 {
 	load_model(filename);
-	init_buffers(device);
+	init_buffers(context);
 }
 
-void Mesh::init_buffers(const Device& device)
+void Mesh::init_buffers(const Context* context)
 {
 	// Create Vertex Buffer
 	VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
 	Buffer staging_buffer {};
-	staging_buffer.init(device,
+	staging_buffer.init(context,
 		buffer_size,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		VMA_MEMORY_USAGE_CPU_ONLY);
 
 	void* data;
-	vkMapMemory(device.logical_device, staging_buffer.memory, 0, buffer_size, 0, &data);
+	vmaMapMemory(context->allocator, staging_buffer.allocation, &data);
 	memcpy(data, vertices.data(), (size_t)buffer_size);
-	vkUnmapMemory(device.logical_device, staging_buffer.memory);
+	vmaUnmapMemory(context->allocator, staging_buffer.allocation);
 
-	vertex_buffer.init(device,
+	vertex_buffer.init(context,
 		buffer_size,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		VMA_MEMORY_USAGE_GPU_ONLY);
 
-	copy_buffer(device, staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
+	copy_buffer(context, staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
 
 	// Create Index Buffer
 	buffer_size = sizeof(indices[0]) * indices.size();
-	staging_buffer.deinit(device.logical_device);
-	staging_buffer.init(device,
+	staging_buffer.deinit(context);
+	staging_buffer.init(context,
 		buffer_size,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		VMA_MEMORY_USAGE_CPU_ONLY);
 
-	vkMapMemory(device.logical_device, staging_buffer.memory, 0, buffer_size, 0, &data);
+	vmaMapMemory(context->allocator, staging_buffer.allocation, &data);
 	memcpy(data, indices.data(), (size_t)buffer_size);
-	vkUnmapMemory(device.logical_device, staging_buffer.memory);
+	vmaUnmapMemory(context->allocator, staging_buffer.allocation);
 
-	index_buffer.init(device,
+	index_buffer.init(context,
 		buffer_size,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		VMA_MEMORY_USAGE_GPU_ONLY);
 
-	copy_buffer(device, staging_buffer.buffer, index_buffer.buffer, buffer_size);
-	staging_buffer.deinit(device.logical_device);
+	copy_buffer(context, staging_buffer.buffer, index_buffer.buffer, buffer_size);
+	staging_buffer.deinit(context);
 }
 
 void Mesh::load_model(std::string filename)
@@ -110,18 +114,18 @@ void Mesh::load_model(std::string filename)
 	}
 }
 
-void Mesh::deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator)
+void Mesh::deinit(const Context* context)
 {
-	index_buffer.deinit(device, pAllocator);
-	vertex_buffer.deinit(device, pAllocator);
+	index_buffer.deinit(context);
+	vertex_buffer.deinit(context);
 }
 
-void Mesh::copy_buffer(const Device& device,
+void Mesh::copy_buffer(const Context* context,
 	VkBuffer src_buffer,
 	VkBuffer dst_buffer,
 	VkDeviceSize size)
 {
-	device.record_transfer_commands([size, src_buffer, dst_buffer](VkCommandBuffer command_buffer) {
+	context->record_transfer_command([size, src_buffer, dst_buffer](VkCommandBuffer command_buffer) {
 		VkBufferCopy copy_region {};
 		copy_region.srcOffset = 0;
 		copy_region.dstOffset = 0;

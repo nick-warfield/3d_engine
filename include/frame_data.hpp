@@ -15,20 +15,17 @@ struct FrameData {
 	VkCommandPool command_pool;
 	VkCommandBuffer command_buffer;
 
-	VkDescriptorPool descriptor_pool;
-	VkDescriptorSetLayout descriptor_set_layout;
-	VkDescriptorSet descriptor_set;
-
 	VkSemaphore image_available_semaphore;
 	VkSemaphore render_finished_semaphore;
 	VkFence in_flight_fence;
 
-	VkResult init(const Context* context);
+	void init(const Context* context);
 	void deinit(const Context* context);
 
 private:
-	VkResult init_command_buffer(const Context* context);
-	VkResult init_sync_objects(const Context* context);
+	void init_command_buffer(const Context* context);
+	void init_descriptors(const Context* context);
+	void init_sync_objects(const Context* context);
 };
 
 struct Frames {

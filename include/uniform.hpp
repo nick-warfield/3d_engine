@@ -6,66 +6,72 @@
 #include "device.hpp"
 
 #include <cstring>
+#include <any>
+#include <cstring>
 #include <iostream>
 
-namespace gfx {
+namespace chch {
 
-// expand this with templates + tuples + dynamic buffers
+struct UniformBuffer {
+	Buffer buffer;
+	void* data;
+	uint32_t ubo_size;
 
-// where T is a uniform buffer object
-
-struct Uniform {
-	per_frame<Buffer> buffer;
-	per_frame<bool> is_stale;
-
-	void* m_ubo;
-	VkDeviceSize ubo_size;
-
-	template <typename T>
-	T* ubo()
-	{
-		is_stale.fill(true);
-		return (T*)m_ubo;
-	}
-
-	template <typename T>
-	void init(const Device& device, T* ubo)
-	{
-		m_ubo = ubo;
-		is_stale.fill(true);
-		ubo_size = sizeof(T);
-		for (size_t i = 0; i < buffer.size(); ++i) {
-			buffer[i].init(
-				device,
+	void init(const Context* context, uint32_t size) {
+		ubo_size = size;
+		buffer.init(
+				context,
 				ubo_size,
 				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-			update(device.logical_device, i);
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				VMA_MEMORY_USAGE_CPU_TO_GPU);
+		vmaMapMemory(context->allocator, buffer.allocation, &data);
+	}
+
+	void deinit(const Context* context) {
+		vmaUnmapMemory(context->allocator, buffer.allocation);
+		buffer.deinit(context);
+	}
+
+	void copy(void* ubo_data) {
+		memcpy(data, ubo_data, ubo_size);
+	}
+};
+
+template <typename T>
+struct Uniform {
+	per_frame<UniformBuffer> buffer;
+
+	void init(const Context* context, T ubo) {
+		m_context = context;
+		m_ubo = ubo;
+		is_stale.fill(true);
+		for (size_t i = 0; i < buffer.size(); ++i) {
+			buffer[i].init(context, sizeof(T));
+			update(i);
 		}
 	}
 
-	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr)
-	{
+	void deinit() {
 		for (auto& b : buffer)
-			b.deinit(device, pAllocator);
+			b.deinit(m_context);
 	}
 
-	void update(
-		const VkDevice& device,
-		uint32_t current_frame)
+	const T& ubo() const { return m_ubo; }
+	T& ubo() { is_stale.fill(true); return m_ubo; }
+
+	void update(uint32_t current_frame)
 	{
 		if (!is_stale[current_frame])
 			return;
-
-		void* data;
-		auto& memory = buffer[current_frame].memory;
-		vkMapMemory(device, memory, 0, ubo_size, 0, &data);
-		memcpy(data, m_ubo, ubo_size);
-		vkUnmapMemory(device, memory);
-
-		// caching is not working properly with this jank
-		//is_stale[current_frame] = false;
+		buffer[current_frame].copy((void*)m_ubo);
+		is_stale[current_frame] = false;
 	}
+
+private:
+	const Context* m_context;
+	per_frame<bool> is_stale;
+	T m_ubo;
 };
 
 }

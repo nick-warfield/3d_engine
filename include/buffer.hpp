@@ -1,22 +1,22 @@
 #pragma once
 
-#include <vector>
 #include <vulkan/vulkan_core.h>
+#include "vk_mem_alloc.h"
 
-namespace gfx {
+namespace chch {
 
-struct Device;
-struct Vertex;
+struct Context;
 
 struct Buffer {
 	VkBuffer buffer;
-	VkDeviceMemory memory;
+	VmaAllocation allocation;
 
-	void init(const Device& device,
-		VkDeviceSize size,
-		VkBufferUsageFlags usage,
-		VkMemoryPropertyFlags properties);
-	void deinit(const VkDevice& device, const VkAllocationCallbacks* = nullptr);
+	void init(const Context* context,
+	VkDeviceSize size,
+	VkBufferUsageFlags buffer_usage,
+	VkMemoryPropertyFlags memory_properties,
+	VmaMemoryUsage memory_usage);
+	void deinit(const Context* context);
 };
 
 }

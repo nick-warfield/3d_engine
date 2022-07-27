@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace chch {
 
@@ -108,10 +109,13 @@ void Context::init(const ContextCreateInfo& create_info)
 	init_logical_device();
 	init_queues();
 	init_allocator();
+	init_command_pool();
 }
 
 void Context::deinit()
 {
+	vkDestroyCommandPool(device, graphics_command_pool, allocation_callbacks);
+	vkDestroyCommandPool(device, transfer_command_pool, allocation_callbacks);
 	vmaDestroyAllocator(allocator);
 	vkDestroyDevice(device, allocation_callbacks);
 	vkDestroySurfaceKHR(instance, surface, allocation_callbacks);
@@ -139,6 +143,50 @@ bool Context::window_hidden()
 	int width = 0, height = 0;
 	glfwGetFramebufferSize(window, &width, &height);
 	return width == 0 || height == 0;
+}
+void Context::record_graphics_command(
+		std::function<void(VkCommandBuffer command_buffer)> commands) const
+{
+	record_one_time_command(graphics_queue.queue, graphics_command_pool, commands);
+}
+
+void Context::record_transfer_command(
+		std::function<void(VkCommandBuffer command_buffer)> commands) const
+{
+	record_one_time_command(transfer_queue.queue, transfer_command_pool, commands);
+}
+
+void Context::record_one_time_command(
+		VkQueue queue,
+		VkCommandPool command_pool,
+		std::function<void(VkCommandBuffer command_buffer)> commands) const
+{
+	VkCommandBufferAllocateInfo alloc_info {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	alloc_info.commandPool = command_pool;
+	alloc_info.commandBufferCount = 1;
+
+	VkCommandBuffer command_buffer;
+	vkAllocateCommandBuffers(device, &alloc_info, &command_buffer);
+
+	VkCommandBufferBeginInfo begin_info {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(command_buffer, &begin_info);
+	commands(command_buffer);
+	vkEndCommandBuffer(command_buffer);
+
+	VkSubmitInfo submit_info {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &command_buffer;
+
+	vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+	vkQueueWaitIdle(queue);
+
+	vkFreeCommandBuffers(device, command_pool, 1, &command_buffer);
 }
 
 bool Context::supports_required_extensions()
@@ -551,6 +599,20 @@ void Context::init_allocator()
 	create_info.vulkanApiVersion = VK_API_VERSION_1_3;
 
 	vmaCreateAllocator(&create_info, &allocator);
+}
+
+void Context::init_command_pool()
+{
+	VkCommandPoolCreateInfo pool_info {};
+	pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+	pool_info.queueFamilyIndex = transfer_queue.index;
+	if (vkCreateCommandPool(device, &pool_info, nullptr, &transfer_command_pool) != VK_SUCCESS)
+		throw std::runtime_error("failed to create command pool");
+
+	pool_info.queueFamilyIndex = graphics_queue.index;
+	if (vkCreateCommandPool(device, &pool_info, nullptr, &graphics_command_pool) != VK_SUCCESS)
+		throw std::runtime_error("failed to create command pool");
 }
 
 }

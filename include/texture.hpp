@@ -1,23 +1,24 @@
 #pragma once
 
+#include "vk_mem_alloc.h"
 #include <vulkan/vulkan_core.h>
 #include <vector>
 #include <string>
 
-namespace gfx {
+namespace chch {
 
-struct Device;
+struct Context;
 
 struct Image {
 	VkImage image;
 	VkImageView image_view;
-	VkDeviceMemory image_memory;
+	VmaAllocation allocation;
 
-	void init(const Device& device, uint32_t width, uint32_t height, uint32_t mip_levels,
+	void init(const Context* context, uint32_t width, uint32_t height, uint32_t mip_levels,
 			VkSampleCountFlagBits samples, VkFormat format, VkImageTiling tiling,
-			VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-			VkImageAspectFlags aspect_flags);
-	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
+			VkImageAspectFlags aspect_flags, VkImageUsageFlags image_usage,
+			VkMemoryPropertyFlags memory_properties, VmaMemoryUsage memory_usage);
+	void deinit(const Context* context);
 };
 
 struct Texture {
@@ -28,41 +29,12 @@ struct Texture {
 	VkSampler sampler;
 	Image image;
 
-	void init(const Device& device, std::string filename);
-	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
+	void init(const Context* context, std::string filename);
+	void deinit(const Context* context);
 
 private:
-	void init_texture(const Device& device, std::string filename);
-	void init_sampler(const Device& device);
+	void init_texture(const Context* context, std::string filename);
+	void init_sampler(const Context* context);
 };
-
-void transition_image_layout(
-	const Device& device,
-	VkImage image,
-	uint32_t mip_levels,
-	VkFormat format,
-	VkImageLayout old_layout,
-	VkImageLayout new_layout);
-
-void copy_buffer_to_image(
-	const Device& device,
-	VkBuffer buffer,
-	VkImage image,
-	uint32_t width,
-	uint32_t height);
-
-VkFormat find_supported_format(
-	const Device& device,
-	const std::vector<VkFormat>& candidates,
-	VkImageTiling tiling,
-	VkFormatFeatureFlags features);
-
-void generate_mipmaps(
-	const Device& device,
-	VkImage image,
-	VkFormat format,
-	int32_t width,
-	int32_t height,
-	uint32_t mip_levels);
 
 }

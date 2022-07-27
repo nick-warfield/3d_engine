@@ -1,8 +1,8 @@
 #include "pipeline_builder.hpp"
 #include "context.hpp"
+#include "util.hpp"
 
 // update these later
-#include "util.hpp"
 #include "vertex.hpp"
 
 #include <stdexcept>
@@ -12,7 +12,7 @@ namespace chch {
 
 VkResult PipelineBuilder::load_shader(const Context* context, const std::string& filename, VkShaderModule* shader_module)
 {
-	auto shader_file = gfx::read_file(("shaders/" + filename).c_str());
+	auto shader_file = chch::read_file(("shaders/" + filename).c_str());
 
 	VkShaderModuleCreateInfo create_info {};
 	create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -57,8 +57,8 @@ PipelineBuilder PipelineBuilder::add_push_constant(uint32_t offset, uint32_t siz
 
 PipelineBuilder PipelineBuilder::set_vertex_input()
 {
-	auto binding_description = gfx::Vertex::get_binding_description();
-	auto attribute_description = gfx::Vertex::get_attribute_description();
+	auto binding_description = chch::Vertex::get_binding_description();
+	auto attribute_description = chch::Vertex::get_attribute_description();
 
 	VkPipelineVertexInputStateCreateInfo vertex_input_info {};
 	vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;

@@ -8,58 +8,30 @@
 #include "texture.hpp"
 #include "uniform.hpp"
 
-namespace gfx {
+namespace chch {
 
+// move to util
 VkShaderModule load_shader(VkDevice device, std::string filename);
 
 struct Material {
-	Texture texture;
-	Uniform uniform;
-
 	VkDescriptorPool descriptor_pool;
-	VkDescriptorSetLayout descriptor_set_layout;
+	per_frame<VkDescriptorSetLayout> descriptor_set_layout;
 	per_frame<VkDescriptorSet> descriptor_set;
 
 	VkPipelineLayout pipeline_layout;
 	VkPipeline pipeline;
 
-	template <typename T>
-	void init(const Device& device,
+	void init(const Context* context,
 			const VkRenderPass& render_pass,
 			VkDescriptorSetLayout base_layout,
-			T* ubo,
-			std::string texture_name,
+			std::vector<Texture*> texture,
+			std::vector<per_frame<UniformBuffer>*> uniform,
 			std::string vertex_shader_name,
-			std::string fragment_shader_name)
-	{
-		auto vert_shader = load_shader(device.logical_device, vertex_shader_name);
-		auto frag_shader = load_shader(device.logical_device, fragment_shader_name);
+			std::string fragment_shader_name,
+			VkCullModeFlagBits cull_mode,
+			VkBool32 enable_depth);
 
-		uniform.init(device, ubo);
-		texture.init(device, texture_name);
-
-		init_descriptor_set(device.logical_device);
-		init_pipeline(device, render_pass, base_layout, vert_shader, frag_shader);
-
-		vkDestroyShaderModule(device.logical_device, vert_shader, nullptr);
-		vkDestroyShaderModule(device.logical_device, frag_shader, nullptr);
-	}
-
-	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
-
-	void init_skybox_pipeline(
-			const Device& device,
-			VkRenderPass render_pass,
-			VkDescriptorSetLayout base_layout);
-
-private:
-	void init_descriptor_set(const VkDevice& device);
-	void init_pipeline(
-			const Device& device,
-			VkRenderPass render_pass,
-			VkDescriptorSetLayout base_layout,
-			VkShaderModule vert_shader,
-			VkShaderModule frag_shader);
+	void deinit(const Context* context);
 };
 
 }

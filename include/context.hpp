@@ -7,6 +7,7 @@
 #include "GLFW/glfw3.h"
 
 #include <vector> // small vector would be nice here
+#include <functional>
 #include <limits>
 
 namespace chch {
@@ -47,6 +48,8 @@ struct Context {
 	QueueFamily transfer_queue;
 	QueueFamily present_queue;
 	std::vector<uint32_t> unique_queue_indices;
+	VkCommandPool graphics_command_pool;
+	VkCommandPool transfer_command_pool;
 
 	// supported properties & features
 	VkSurfaceCapabilitiesKHR surface_capabilities;
@@ -76,6 +79,10 @@ struct Context {
 	// helpers
 	uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags property_flags) const;
 	bool window_hidden();
+	void record_graphics_command(
+			std::function<void(VkCommandBuffer command_buffer)> commands) const;
+	void record_transfer_command(
+			std::function<void(VkCommandBuffer command_buffer)> commands) const;
 
 private:
 	bool supports_required_extensions();
@@ -85,6 +92,11 @@ private:
 	void populate_all_info();
 	int score_device();
 
+	void record_one_time_command(
+			VkQueue queue,
+			VkCommandPool command_pool,
+			std::function<void(VkCommandBuffer command_buffer)> commands) const;
+
 	void init_glfw(const ContextCreateInfo& create_info);
 	void init_instance(const ContextCreateInfo& create_info);
 	void init_debugger();
@@ -93,6 +105,7 @@ private:
 	void init_logical_device();
 	void init_queues();
 	void init_allocator();
+	void init_command_pool();
 };
 
 VkDebugUtilsMessengerCreateInfoEXT make_debugger_create_info();

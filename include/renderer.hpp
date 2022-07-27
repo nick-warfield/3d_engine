@@ -4,18 +4,21 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <context.hpp>
 #include "camera.hpp"
-#include "constants.hpp"
 #include "frame_data.hpp"
-#include "material.hpp"
 #include "texture.hpp"
 #include "uniform.hpp"
-#include "window.hpp"
-#include "device.hpp"
 
 #include <vector>
 
-namespace gfx {
+namespace chch {
+
+struct Material;
+
+struct SceneGlobals {
+
+};
 
 static inline void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
 {
@@ -31,23 +34,20 @@ struct Mesh;
 
 struct Renderer {
 	uint32_t image_index;
-	VkFormat format;
-	VkExtent2D extent;
-	bool framebuffer_resized = false;
 	VkSwapchainKHR swap_chain = VK_NULL_HANDLE;
 
 	VkRenderPass render_pass = VK_NULL_HANDLE;
 	Image depth_image;
 	Image msaa_image;
 
-	Uniform uniform;
-	Texture texture;
 	VkDescriptorPool descriptor_pool;
 	VkDescriptorSetLayout descriptor_set_layout;
 	per_frame<VkDescriptorSet> descriptor_set;
+	Uniform<SceneGlobals> scene_globals;
 
 	Frames frames;
 	Camera* camera;
+	const Context* context;
 
 	const glm::mat4 correction_matrix = {
 		{ 1.0f, 0.0f, 0.0f, 0.0f },
@@ -61,13 +61,10 @@ struct Renderer {
 	std::vector<VkImageView> swap_chain_image_views;
 	std::vector<VkFramebuffer> framebuffers;
 
-	template <typename T>
-	void init(const Window& window, const Device& device, Camera* p_camera, T* ubo)
+	void init(const Context* p_context, Camera* p_camera)
 	{
-		glfwSetWindowUserPointer(window.glfw_window, &framebuffer_resized);
-		glfwSetFramebufferSizeCallback(window.glfw_window, framebuffer_resize_callback);
-
-		init_swap_chain(device, window);
+		context = p_context;
+		init_swap_chain();
 
 		auto dev = device.logical_device;
 		init_image_views(dev);

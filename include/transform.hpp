@@ -5,7 +5,7 @@
 #include "glm/matrix.hpp"
 #include "glm/gtc/quaternion.hpp"
 
-namespace gfx {
+namespace chch {
 
 struct Transform {
 	glm::vec3 position = glm::vec3(0.0f);

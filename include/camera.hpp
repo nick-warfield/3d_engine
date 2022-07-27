@@ -13,7 +13,7 @@
 
 #include <iostream>
 
-namespace gfx {
+namespace chch {
 
 struct Camera {
 	Transform transform;

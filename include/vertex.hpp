@@ -9,7 +9,7 @@
 #include <array>
 #include <functional>
 
-namespace gfx {
+namespace chch {
 
 struct Vertex {
 	glm::vec3 position;
@@ -59,8 +59,8 @@ struct Vertex {
 }
 
 template <>
-struct std::hash<gfx::Vertex> {
-	size_t operator()(gfx::Vertex const& vertex) const
+struct std::hash<chch::Vertex> {
+	size_t operator()(chch::Vertex const& vertex) const
 	{
 		return ((hash<glm::vec3>()(vertex.position)
 				^ (hash<glm::vec3>()(vertex.normal) << 1)) >> 1)

@@ -1,16 +1,15 @@
 #include "frame_data.hpp"
+#include "util.hpp"
+#include "descriptor_builder.hpp"
+
 #include <vulkan/vulkan_core.h>
-#include <stdexcept>
 
 namespace chch {
 
-VkResult FrameData::init(const Context* context)
+void FrameData::init(const Context* context)
 {
-	VK_CHECK(init_command_buffer(context));
-	if (res != VK_SUCCESS) return res;
-	res = init_sync_objects(context);
-
-	return res;
+	init_command_buffer(context);
+	init_sync_objects(context);
 }
 
 void FrameData::deinit(const Context* context)
@@ -21,15 +20,14 @@ void FrameData::deinit(const Context* context)
 	vkDestroyCommandPool(context->device, command_pool, context->allocation_callbacks);
 }
 
-VkResult FrameData::init_command_buffer(const Context* context)
+void FrameData::init_command_buffer(const Context* context)
 {
 	VkCommandPoolCreateInfo pool_info {};
 	pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	pool_info.queueFamilyIndex = context->graphics_queue.index;
 
-	if (vkCreateCommandPool(context->device, &pool_info, context->allocation_callbacks, &command_pool) != VK_SUCCESS)
-		throw std::runtime_error("failed to create command pool");
+	vk_check(vkCreateCommandPool(context->device, &pool_info, context->allocation_callbacks, &command_pool));
 
 	VkCommandBufferAllocateInfo alloc_info {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -37,11 +35,10 @@ VkResult FrameData::init_command_buffer(const Context* context)
 	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	alloc_info.commandBufferCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
-	if (vkAllocateCommandBuffers(dev, &alloc_info, &command_buffer) != VK_SUCCESS)
-		throw std::runtime_error("failed to allocate command buffer");
+	vk_check(vkAllocateCommandBuffers(context->device, &alloc_info, &command_buffer));
 }
 
-void FrameData::init_sync_objects(const Device& device)
+void FrameData::init_sync_objects(const Context* context)
 {
 	VkSemaphoreCreateInfo semaphore_info {};
 	semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -50,34 +47,23 @@ void FrameData::init_sync_objects(const Device& device)
 	fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	auto dev = device.logical_device;
-	bool success = true;
-	success = success
-		&& vkCreateSemaphore(
-				dev,
-				&semaphore_info,
-				nullptr,
-				&image_available_semaphore)
-		== VK_SUCCESS;
+	vk_check(vkCreateSemaphore(
+			context->device,
+			&semaphore_info,
+			context->allocation_callbacks,
+			&image_available_semaphore));
 
-	success = success
-		&& vkCreateSemaphore(
-				dev,
-				&semaphore_info,
-				nullptr,
-				&render_finished_semaphore)
-		== VK_SUCCESS;
+	vk_check(vkCreateSemaphore(
+			context->device,
+			&semaphore_info,
+			context->allocation_callbacks,
+			&render_finished_semaphore));
 
-	success = success
-		&& vkCreateFence(
-				dev,
-				&fence_info,
-				nullptr,
-				&in_flight_fence)
-		== VK_SUCCESS;
-
-	if (!success)
-		throw std::runtime_error("failed to create synchronization objects");
+	vk_check(vkCreateFence(
+			context->device,
+			&fence_info,
+			context->allocation_callbacks,
+			&in_flight_fence));
 }
 
 }
