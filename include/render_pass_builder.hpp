@@ -31,7 +31,12 @@ struct RenderPassBuilder {
 		std::vector<uint32_t> m_preserve_ref;
 	};
 
-	static RenderPassBuilder begin(const Context* context);
+	static RenderPassBuilder begin(const Context* context) {
+		RenderPassBuilder builder {};
+		builder.m_context = context;
+		return builder;
+	}
+
 	VkResult build(VkRenderPass* render_pass);
 
 	RenderPassBuilder add_color_attachment(uint32_t attachment_index, VkFormat format);

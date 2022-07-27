@@ -1,6 +1,5 @@
 #include "mesh.hpp"
 #include "context.hpp"
-#include "device.hpp"
 #include "vertex.hpp"
 #include "util.hpp"
 

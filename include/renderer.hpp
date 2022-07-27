@@ -17,7 +17,10 @@ struct Material;
 struct Texture;
 
 struct SceneGlobals {
-
+	glm::vec3 sun_color;
+	glm::vec3 sun_dir;
+	float intensity;
+	glm::vec3 ambient_color;
 };
 
 struct Window;

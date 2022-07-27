@@ -222,7 +222,10 @@ VkResult PipelineBuilder::build(VkPipelineLayout* pipeline_layout, VkPipeline* p
 		m_shader_stages.push_back(shader_stage_info);
 	}
 
-	std::vector<VkDescriptorSetLayout> layouts(m_layouts.begin(), m_layouts.end());
+	std::vector<VkDescriptorSetLayout> layouts;
+	for (auto [key, value] : m_layouts)
+		layouts.push_back(value);
+
 	VkPipelineLayoutCreateInfo pipeline_layout_info {};
 	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipeline_layout_info.setLayoutCount = layouts.size();

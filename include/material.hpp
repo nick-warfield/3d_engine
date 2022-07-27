@@ -3,7 +3,6 @@
 #include <vulkan/vulkan_core.h>
 #include <string>
 
-#include "device.hpp"
 #include "buffer.hpp"
 #include "texture.hpp"
 #include "uniform.hpp"

@@ -6,10 +6,10 @@
 #include <string>
 
 #include "buffer.hpp"
+#include "vertex.hpp"
 
 namespace chch {
 
-struct Vertex;
 struct Context;
 
 struct Mesh {

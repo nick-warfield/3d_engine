@@ -3,7 +3,6 @@
 #include "buffer.hpp"
 #include "frame_data.hpp"
 #include "util.hpp"
-#include "device.hpp"
 
 #include <cstring>
 #include <any>
@@ -63,7 +62,7 @@ struct Uniform {
 	{
 		if (!is_stale[current_frame])
 			return;
-		buffer[current_frame].copy((void*)m_ubo);
+		buffer[current_frame].copy((void*)&m_ubo);
 		is_stale[current_frame] = false;
 	}
 

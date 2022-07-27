@@ -1,4 +1,5 @@
 #include "render_pass_builder.hpp"
+#include "util.hpp"
 #include <cstdint>
 
 namespace chch {
@@ -67,8 +68,13 @@ RenderPassBuilder RenderPassBuilder::SubpassBuilder::end_subpass()
 
 VkResult RenderPassBuilder::build(VkRenderPass* render_pass)
 {
-	std::vector<VkAttachmentDescription> attachments(m_attachments.begin(), m_attachments.end());
-	std::vector<VkSubpassDescription> subpasses(m_subpasses.begin(), m_subpasses.end());
+	std::vector<VkAttachmentDescription> attachments;
+	for (auto [key, value] : m_attachments)
+		attachments.push_back(value);
+
+	std::vector<VkSubpassDescription> subpasses;
+	for (auto [key, value] : m_subpasses)
+		subpasses.push_back(value);
 
 	VkRenderPassCreateInfo create_info {};
 	create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -122,7 +128,7 @@ RenderPassBuilder RenderPassBuilder::add_depth_attachment(uint32_t attachment_in
 {
 	VkAttachmentDescription attachment {};
 	attachment.format = find_supported_format(
-		m_context->device,
+		m_context,
 		{ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
@@ -148,6 +154,7 @@ RenderPassBuilder::SubpassBuilder RenderPassBuilder::begin_subpass(uint32_t subp
 	SubpassBuilder sub_builder;
 	sub_builder.m_render_pass_builder = this;
 	sub_builder.m_subpass_index = subpass_index;
+	return sub_builder;
 }
 
 RenderPassBuilder RenderPassBuilder::add_dependency(
