@@ -59,6 +59,7 @@ void DestroyDebugUtilsMessengerEXT(
 static void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
 {
 	auto context = reinterpret_cast<Context*>(glfwGetWindowUserPointer(window));
+	// gonna have to reset capabilities
 	auto& capabilities = context->surface_capabilities;
 
 	if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())

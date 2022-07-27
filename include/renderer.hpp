@@ -7,7 +7,6 @@
 #include <context.hpp>
 #include "camera.hpp"
 #include "frame_data.hpp"
-#include "texture.hpp"
 #include "uniform.hpp"
 
 #include <vector>
@@ -15,18 +14,11 @@
 namespace chch {
 
 struct Material;
+struct Texture;
 
 struct SceneGlobals {
 
 };
-
-static inline void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
-{
-	auto framebuffer_resized = reinterpret_cast<bool*>(glfwGetWindowUserPointer(window));
-	*framebuffer_resized = true;
-	(void)width;
-	(void)height;
-}
 
 struct Window;
 struct Device;
@@ -41,13 +33,13 @@ struct Renderer {
 	Image msaa_image;
 
 	VkDescriptorPool descriptor_pool;
-	VkDescriptorSetLayout descriptor_set_layout;
+	per_frame<VkDescriptorSetLayout> descriptor_set_layout;
 	per_frame<VkDescriptorSet> descriptor_set;
-	Uniform<SceneGlobals> scene_globals;
+	Uniform<SceneGlobals> scene_uniform;
 
 	Frames frames;
 	Camera* camera;
-	const Context* context;
+	Context* context;
 
 	const glm::mat4 correction_matrix = {
 		{ 1.0f, 0.0f, 0.0f, 0.0f },
@@ -61,40 +53,21 @@ struct Renderer {
 	std::vector<VkImageView> swap_chain_image_views;
 	std::vector<VkFramebuffer> framebuffers;
 
-	void init(const Context* p_context, Camera* p_camera)
-	{
-		context = p_context;
-		init_swap_chain();
+	void init(Context* p_context, SceneGlobals scene_globals, Camera* p_camera);
+	void deinit();
 
-		auto dev = device.logical_device;
-		init_image_views(dev);
-		init_render_pass(device);
-		init_depth_image(device);
-		init_msaa_image(device);
-		init_framebuffers(dev);
-
-		texture.init(device, "viking_room.png");
-		uniform.init(device, ubo);
-		init_base_descriptor(device);
-
-		camera = p_camera;
-		frames.init(device);
-	}
-
-	void deinit(const VkDevice& device, const VkAllocationCallbacks* pAllocator = nullptr);
-
-	void setup_draw(Window& window, Device& device, VkPipelineLayout pipeline_layout);
+	void setup_draw();
 	void draw(const Transform& transform, const Mesh& mesh, const Material& material);
-	void present_draw(Window& window, Device& device);
+	void present_draw();
 
 private:
-	void init_swap_chain(const Device& device, const Window& window);
-	void init_image_views(const VkDevice& device);
-	void init_render_pass(const Device& device);
-	void init_framebuffers(const VkDevice& device);
-	void init_depth_image(const Device& device);
-	void init_msaa_image(const Device& device);
-	void init_base_descriptor(const Device& device);
+	void init_swap_chain();
+	void init_image_views();
+	void init_render_pass();
+	void init_framebuffers();
+	void init_depth_image();
+	void init_msaa_image();
+	void init_base_descriptor();
 	void init_camera();
 
 	void record_command_buffer(
@@ -102,7 +75,7 @@ private:
 		const Transform& transform,
 		const Mesh& mesh,
 		const Material& material);
-	void recreate_swap_chain(Window&, Device&);
+	void recreate_swap_chain();
 };
 
 }

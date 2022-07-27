@@ -4,7 +4,7 @@
 
 namespace chch {
 
-VkResult DescriptorBuilder::build(VkDescriptorSetLayout& layout, VkDescriptorSet& set)
+VkResult DescriptorBuilder::build(VkDescriptorSetLayout* layout, VkDescriptorSet* set)
 {
 	VkDescriptorSetLayoutCreateInfo layout_info {};
 	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -15,7 +15,7 @@ VkResult DescriptorBuilder::build(VkDescriptorSetLayout& layout, VkDescriptorSet
 		m_context->device,
 		&layout_info,
 		m_context->allocation_callbacks,
-		&layout);
+		layout);
 
 	if (result != VK_SUCCESS)
 		return result;
@@ -24,15 +24,15 @@ VkResult DescriptorBuilder::build(VkDescriptorSetLayout& layout, VkDescriptorSet
 	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	alloc_info.descriptorPool = m_pool;
 	alloc_info.descriptorSetCount = 1;
-	alloc_info.pSetLayouts = &layout;
+	alloc_info.pSetLayouts = layout;
 	alloc_info.pNext = nullptr;
 
-	result = vkAllocateDescriptorSets(m_context->device, &alloc_info, &set);
+	result = vkAllocateDescriptorSets(m_context->device, &alloc_info, set);
 	if (result != VK_SUCCESS)
 		return result;
 
 	for (auto& w : m_writes)
-		w.dstSet = set;
+		w.dstSet = *set;
 
 	vkUpdateDescriptorSets(
 		m_context->device,
@@ -44,31 +44,28 @@ VkResult DescriptorBuilder::build(VkDescriptorSetLayout& layout, VkDescriptorSet
 	return result;
 }
 
-template <typename T>
-DescriptorBuilder DescriptorBuilder::bind_buffer(
-	uint32_t binding,
-	Uniform<T>* uniform,
-	VkDescriptorType type,
-	VkShaderStageFlagBits stages)
+DescriptorBuilder DescriptorBuilder::bind_uniform(
+		uint32_t binding,
+		UniformBuffer* uniform)
 {
-	VkDescriptorBufferInfo info {};
-	info.buffer = uniform->buffer[0].buffer,
-	info.offset = 0;
-	info.range = sizeof(T);
-
 	VkDescriptorSetLayoutBinding layout_binding {};
 	layout_binding.binding = binding;
-	layout_binding.descriptorType = type;
+	layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	layout_binding.descriptorCount = 1;
-	layout_binding.stageFlags = stages;
+	layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 	layout_binding.pImmutableSamplers = nullptr;
 	m_bindings.push_back(layout_binding);
+
+	VkDescriptorBufferInfo info {};
+	info.buffer = uniform->buffer.buffer,
+	info.offset = 0;
+	info.range = uniform->ubo_size;
 
 	VkWriteDescriptorSet layout_write;
 	layout_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	layout_write.dstBinding = binding;
 	layout_write.dstArrayElement = 0;
-	layout_write.descriptorType = type;
+	layout_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	layout_write.descriptorCount = 1;
 	layout_write.pBufferInfo = &info;
 	m_writes.push_back(layout_write);
@@ -76,11 +73,9 @@ DescriptorBuilder DescriptorBuilder::bind_buffer(
 	return *this;
 }
 
-DescriptorBuilder DescriptorBuilder::bind_image(
-	uint32_t binding,
-	Texture* texture,
-	VkDescriptorType type,
-	VkShaderStageFlagBits stages)
+DescriptorBuilder DescriptorBuilder::bind_texture(
+		uint32_t binding,
+		Texture* texture)
 {
 	VkDescriptorImageInfo info {};
 	info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -89,9 +84,9 @@ DescriptorBuilder DescriptorBuilder::bind_image(
 
 	VkDescriptorSetLayoutBinding layout_binding {};
 	layout_binding.binding = binding;
-	layout_binding.descriptorType = type;
+	layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	layout_binding.descriptorCount = 1;
-	layout_binding.stageFlags = stages;
+	layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	layout_binding.pImmutableSamplers = nullptr;
 	m_bindings.push_back(layout_binding);
 
@@ -99,9 +94,10 @@ DescriptorBuilder DescriptorBuilder::bind_image(
 	layout_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	layout_write.dstBinding = binding;
 	layout_write.dstArrayElement = 0;
-	layout_write.descriptorType = type;
+	layout_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	layout_write.descriptorCount = 1;
 	layout_write.pImageInfo = &info;
+
 	m_writes.push_back(layout_write);
 
 	return *this;

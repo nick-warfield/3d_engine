@@ -43,7 +43,6 @@ struct Uniform {
 	per_frame<UniformBuffer> buffer;
 
 	void init(const Context* context, T ubo) {
-		m_context = context;
 		m_ubo = ubo;
 		is_stale.fill(true);
 		for (size_t i = 0; i < buffer.size(); ++i) {
@@ -52,9 +51,9 @@ struct Uniform {
 		}
 	}
 
-	void deinit() {
+	void deinit(const Context* context) {
 		for (auto& b : buffer)
-			b.deinit(m_context);
+			b.deinit(context);
 	}
 
 	const T& ubo() const { return m_ubo; }
@@ -69,7 +68,6 @@ struct Uniform {
 	}
 
 private:
-	const Context* m_context;
 	per_frame<bool> is_stale;
 	T m_ubo;
 };
