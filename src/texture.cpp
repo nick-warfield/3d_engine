@@ -108,9 +108,9 @@ void Texture::init_texture(const Context* context, std::string filename)
 		VMA_MEMORY_USAGE_CPU_ONLY);
 
 	void* data;
-	vmaMapMemory(context->allocator, image.allocation, &data);
+	vmaMapMemory(context->allocator, staging_buffer.allocation, &data);
 	memcpy(data, pixels, static_cast<size_t>(size));
-	vmaUnmapMemory(context->allocator, image.allocation);
+	vmaUnmapMemory(context->allocator, staging_buffer.allocation);
 
 	stbi_image_free(pixels);
 	image.init(

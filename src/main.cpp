@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 	Context context;
 	Renderer renderer;
 
-//	Texture skyline, viking_room;
+	Texture skyline, viking_room;
 //	Uniform<FloorColor> floor_uniform;
 //	Uniform<SpecularData> spec_uniform;
 //
@@ -131,8 +131,8 @@ int main(int argc, char** argv)
 		camera.type = Camera::PERSPECTIVE;
 		camera.transform.position = glm::vec3(0.0f, 0.0f, -10.0f);
 
-//		skyline.init(&context, "skybox.png");
-//		viking_room.init(&context, "viking_room.png");
+		skyline.init(&context, "skybox.png");
+		viking_room.init(&context, "viking_room.png");
 //
 //		floor_uniform.init(&context, { glm::vec3(0.3f) });
 //		spec_uniform.init(&context, { camera.transform.position, 0.5f });
@@ -187,8 +187,8 @@ int main(int argc, char** argv)
 //		skybox.material.deinit(&context);
 //		skybox.mesh.deinit(&context);
 //
-//		skyline.deinit(&context);
-//		viking_room.deinit(&context);
+		skyline.deinit(&context);
+		viking_room.deinit(&context);
 //		floor_uniform.deinit(&context);
 //		spec_uniform.deinit(&context);
 
