@@ -58,9 +58,9 @@ RenderPassBuilder RenderPassBuilder::SubpassBuilder::end_subpass()
 	subpass.pResolveAttachments = m_color_resolve_ref.data();
 	subpass.pDepthStencilAttachment = m_depth_ref.data();
 	subpass.inputAttachmentCount = static_cast<uint32_t>(m_input_ref.size());
-	subpass.pInputAttachments = m_input_ref.data();
+	subpass.pInputAttachments = nullptr;
 	subpass.preserveAttachmentCount = static_cast<uint32_t>(m_preserve_ref.size());
-	subpass.pPreserveAttachments = m_preserve_ref.data();
+	subpass.pPreserveAttachments = nullptr;
 
 	m_render_pass_builder->m_subpasses[m_subpass_index] = subpass;
 	return *m_render_pass_builder;
@@ -71,7 +71,7 @@ VkResult RenderPassBuilder::build(VkRenderPass* render_pass)
 	std::vector<VkAttachmentDescription> attachments;
 	for (auto [key, value] : m_attachments)
 		attachments.push_back(value);
-
+	
 	std::vector<VkSubpassDescription> subpasses;
 	for (auto [key, value] : m_subpasses)
 		subpasses.push_back(value);
@@ -138,7 +138,7 @@ RenderPassBuilder RenderPassBuilder::add_depth_attachment(uint32_t attachment_in
 	attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	m_attachments[attachment_index] = attachment;
 	return *this;

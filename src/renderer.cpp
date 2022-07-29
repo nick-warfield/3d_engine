@@ -192,8 +192,8 @@ void Renderer::init_framebuffers()
 	for (size_t i = 0; i < swap_chain_image_views.size(); i++) {
 		std::array<VkImageView, 3> attachments = {
 			msaa_image.image_view,
-			depth_image.image_view,
-			swap_chain_image_views[i]
+			swap_chain_image_views[i],
+			depth_image.image_view
 		};
 
 		VkFramebufferCreateInfo framebuffer_info {};
@@ -213,7 +213,8 @@ void Renderer::init_framebuffers()
 
 void Renderer::init_base_descriptor()
 {
-	descriptor_pool = make_descriptor_pool(context->device, 0, 1);
+	// min has to be 1
+	descriptor_pool = make_descriptor_pool(context->device, 1, 1);
 
 	for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
 	DescriptorBuilder::begin(context, descriptor_pool)

@@ -26,6 +26,8 @@ private:
 	VkDescriptorPool m_pool;
 	std::vector<VkDescriptorSetLayoutBinding> m_bindings;
 	std::vector<VkWriteDescriptorSet> m_writes;
+	std::vector<VkDescriptorImageInfo> m_image_info;
+	std::vector<VkDescriptorBufferInfo> m_buffer_info;
 };
 
 }
