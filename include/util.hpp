@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <vulkan/vulkan_core.h>
 #include <string>
+#include <algorithm>
 
 #include "context.hpp"
 #include "frame_data.hpp"
@@ -254,6 +255,9 @@ inline void generate_mipmaps(
 
 inline VkDescriptorPool make_descriptor_pool(const VkDevice& device, uint32_t image_count, uint32_t uniform_count)
 {
+	image_count = std::max((uint32_t)1, image_count);
+	uniform_count = std::max((uint32_t)1, uniform_count);
+
 	VkDescriptorPool descriptor_pool;
 
 	std::array<VkDescriptorPoolSize, 2> pool_sizes {};

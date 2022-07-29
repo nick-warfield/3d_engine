@@ -57,15 +57,15 @@ PipelineBuilder PipelineBuilder::add_push_constant(uint32_t offset, uint32_t siz
 
 PipelineBuilder PipelineBuilder::set_vertex_input()
 {
-	auto binding_description = chch::Vertex::get_binding_description();
-	auto attribute_description = chch::Vertex::get_attribute_description();
+	vertex_binding_description = Vertex::get_binding_description();
+	vertex_attribute_description = Vertex::get_attribute_description();
 
 	VkPipelineVertexInputStateCreateInfo vertex_input_info {};
 	vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	vertex_input_info.vertexBindingDescriptionCount = 1;
-	vertex_input_info.pVertexBindingDescriptions = &binding_description;
-	vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_description.size());
-	vertex_input_info.pVertexAttributeDescriptions = attribute_description.data();
+	vertex_input_info.pVertexBindingDescriptions = &vertex_binding_description;
+	vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_attribute_description.size());
+	vertex_input_info.pVertexAttributeDescriptions = vertex_attribute_description.data();
 
 	m_vertex_input = vertex_input_info;
 	return *this;
@@ -152,18 +152,17 @@ PipelineBuilder PipelineBuilder::set_depth_stencil(
 
 PipelineBuilder PipelineBuilder::set_color_blending()
 {
-	VkPipelineColorBlendAttachmentState color_blend_attachment {};
 	color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT
 		| VK_COLOR_COMPONENT_G_BIT
 		| VK_COLOR_COMPONENT_B_BIT
 		| VK_COLOR_COMPONENT_A_BIT;
 	color_blend_attachment.blendEnable = VK_FALSE;
-	//	color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	//	color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-	//	color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
-	//	color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-	//	color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-	//	color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+	color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+	color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+	color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
 	VkPipelineColorBlendStateCreateInfo color_blending {};
 	color_blending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -182,7 +181,7 @@ PipelineBuilder PipelineBuilder::set_color_blending()
 
 PipelineBuilder PipelineBuilder::set_dynamic_state()
 {
-	std::vector<VkDynamicState> dynamic_states = {
+	dynamic_states = {
 		VK_DYNAMIC_STATE_VIEWPORT,
 		VK_DYNAMIC_STATE_SCISSOR
 	};
@@ -204,8 +203,8 @@ void PipelineBuilder::free_shader_mods()
 
 VkResult PipelineBuilder::build(VkPipelineLayout* pipeline_layout, VkPipeline* pipeline)
 {
-	m_shader_mods.resize(m_shader_info.size());
-	m_shader_stages.resize(m_shader_info.size());
+	m_shader_mods.reserve(m_shader_info.size());
+	m_shader_stages.reserve(m_shader_info.size());
 	for (auto& shader : m_shader_info) {
 		VkShaderModule mod;
 		auto result = load_shader(m_context, shader.filename, &mod);

@@ -11,8 +11,6 @@
 #include "transform.hpp"
 #include "texture.hpp"
 
-#include <iostream>
-
 namespace chch {
 
 struct Camera {

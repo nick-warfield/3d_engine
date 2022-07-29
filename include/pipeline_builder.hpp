@@ -55,6 +55,11 @@ private:
 		VkShaderStageFlagBits stage;
 	};
 
+	VkVertexInputBindingDescription vertex_binding_description;
+	std::array<VkVertexInputAttributeDescription, 3> vertex_attribute_description;
+	VkPipelineColorBlendAttachmentState color_blend_attachment;
+	std::vector<VkDynamicState> dynamic_states;
+
 	std::map<uint32_t, VkDescriptorSetLayout> m_layouts;
 	const Context* m_context;
 	VkRenderPass m_render_pass;

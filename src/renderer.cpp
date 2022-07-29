@@ -213,8 +213,7 @@ void Renderer::init_framebuffers()
 
 void Renderer::init_base_descriptor()
 {
-	// min has to be 1
-	descriptor_pool = make_descriptor_pool(context->device, 1, 1);
+	descriptor_pool = make_descriptor_pool(context->device, 0, 1);
 
 	for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
 	DescriptorBuilder::begin(context, descriptor_pool)

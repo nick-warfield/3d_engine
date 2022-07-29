@@ -9,8 +9,14 @@
 
 namespace chch {
 
-// move to util
-VkShaderModule load_shader(VkDevice device, std::string filename);
+struct UniformInfo {
+	uint32_t binding;
+	per_frame<UniformBuffer>* uniform_buffer;
+};
+struct TextureInfo {
+	uint32_t binding;
+	Texture* texture;
+};
 
 struct Material {
 	VkDescriptorPool descriptor_pool;
@@ -23,8 +29,8 @@ struct Material {
 	void init(const Context* context,
 			const VkRenderPass& render_pass,
 			VkDescriptorSetLayout base_layout,
-			std::vector<Texture*> texture,
-			std::vector<per_frame<UniformBuffer>*> uniform,
+			std::vector<TextureInfo> texture_info,
+			std::vector<UniformInfo> uniform_info,
 			std::string vertex_shader_name,
 			std::string fragment_shader_name,
 			VkCullModeFlagBits cull_mode,

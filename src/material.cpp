@@ -8,7 +8,6 @@
 
 #include <cstdint>
 #include <fstream>
-#include <iostream>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
@@ -17,26 +16,21 @@ namespace chch {
 void Material::init(const Context* context,
 		const VkRenderPass& render_pass,
 		VkDescriptorSetLayout base_layout,
-		std::vector<Texture*> texture,
-		std::vector<per_frame<UniformBuffer>*> uniform,
+			std::vector<TextureInfo> texture_info,
+			std::vector<UniformInfo> uniform_info,
 		std::string vertex_shader_name,
 		std::string fragment_shader_name,
 		VkCullModeFlagBits cull_mode,
 		VkBool32 enable_depth)
 {
-	descriptor_pool = make_descriptor_pool(context->device, texture.size(), uniform.size());
+	descriptor_pool = make_descriptor_pool(context->device, texture_info.size(), uniform_info.size());
 
 	for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
 		auto builder = DescriptorBuilder::begin(context, descriptor_pool);
-		uint32_t binding = 0;
-		for (auto& t : texture) {
-			builder.bind_texture(binding, t);
-			binding++;
-		}
-		for (auto& u : uniform) {
-			builder.bind_uniform(binding, &u->at(i));
-			binding++;
-		}
+		for (auto& t : texture_info)
+			builder.bind_texture(t.binding, t.texture);
+		for (auto& u : uniform_info)
+			builder.bind_uniform(u.binding, &u.uniform_buffer->at(i));
 		builder.build(&descriptor_set_layout[i], &descriptor_set[i]);
 	}
 

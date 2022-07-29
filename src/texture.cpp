@@ -5,7 +5,6 @@
 
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>

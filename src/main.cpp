@@ -102,13 +102,13 @@ int main(int argc, char** argv)
 	Context context;
 	Renderer renderer;
 
-	Texture skyline, viking_room;
+//	Texture skyline, viking_room;
 //	Uniform<FloorColor> floor_uniform;
 //	Uniform<SpecularData> spec_uniform;
-//
-//	RenderObject sphere, cube, floor;
-//	RenderObject skybox;
-//
+
+	RenderObject sphere, cube, floor;
+	RenderObject skybox;
+
 	SceneGlobals globs;
 	globs.sun_color = glm::vec3(1.0f, 1.0f, 1.0f);
 	globs.sun_dir = glm::normalize(glm::vec3(60, 60, 60));
@@ -131,25 +131,25 @@ int main(int argc, char** argv)
 		camera.type = Camera::PERSPECTIVE;
 		camera.transform.position = glm::vec3(0.0f, 0.0f, -10.0f);
 
-		skyline.init(&context, "skybox.png");
-		viking_room.init(&context, "viking_room.png");
+//		skyline.init(&context, "skybox.png");
+//		viking_room.init(&context, "viking_room.png");
 //
 //		floor_uniform.init(&context, { glm::vec3(0.3f) });
 //		spec_uniform.init(&context, { camera.transform.position, 0.5f });
-//
-//		sphere.mesh.init(&context, "sphere.obj");
+
+		sphere.mesh.init(&context, "quad.obj");
 //		sphere.material.init(&context,
 //				renderer.render_pass, renderer.descriptor_set_layout[0],
-//				{ &viking_room },
-//				{ &spec_uniform.buffer },
+//				{{ 1, &viking_room }},
+//				{{ 0, &spec_uniform.buffer }},
 //				"shader_vert.spv", "shader_frag.spv",
 //				VK_CULL_MODE_BACK_BIT, VK_TRUE);
-//
+
 //		cube.mesh.init(&context, "cube.obj");
 //		cube.material.init(&context,
 //				renderer.render_pass, renderer.descriptor_set_layout[0],
-//				{ &skyline },
-//				{ &spec_uniform.buffer },
+//				{{ 1, &skyline }},
+//				{{ 0, &spec_uniform.buffer }},
 //				"shader_vert.spv", "shader_frag.spv",
 //				VK_CULL_MODE_BACK_BIT, VK_TRUE);
 //
@@ -162,14 +162,14 @@ int main(int argc, char** argv)
 //		floor.material.init(&context,
 //				renderer.render_pass, renderer.descriptor_set_layout[0],
 //				{ },
-//				{ &floor_uniform.buffer },
+//				{{ 0, &floor_uniform.buffer }},
 //				"shader_vert.spv", "white_out_frag.spv",
 //				VK_CULL_MODE_BACK_BIT, VK_TRUE);
 //
 //		skybox.mesh.init(&context, "cube.obj");
 //		skybox.material.init(&context,
 //				renderer.render_pass, renderer.descriptor_set_layout[0],
-//				{ &skyline },
+//				{{ 0, &skyline }},
 //				{ },
 //				"shader_vert.spv", "skybox_frag.spv",
 //				VK_CULL_MODE_FRONT_BIT, VK_FALSE);
@@ -179,16 +179,16 @@ int main(int argc, char** argv)
 		}
 
 //		sphere.material.deinit(&context);
-//		sphere.mesh.deinit(&context);
+		sphere.mesh.deinit(&context);
 //		cube.material.deinit(&context);
 //		cube.mesh.deinit(&context);
 //		floor.material.deinit(&context);
 //		floor.mesh.deinit(&context);
 //		skybox.material.deinit(&context);
 //		skybox.mesh.deinit(&context);
-//
-		skyline.deinit(&context);
-		viking_room.deinit(&context);
+
+//		skyline.deinit(&context);
+//		viking_room.deinit(&context);
 //		floor_uniform.deinit(&context);
 //		spec_uniform.deinit(&context);
 
