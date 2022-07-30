@@ -10,6 +10,7 @@
 #include "render_pass_builder.hpp"
 #include "descriptor_builder.hpp"
 
+#include <iostream>
 #include <vulkan/vulkan_core.h>
 #include <cstdint>
 
@@ -253,7 +254,7 @@ void Renderer::record_command_buffer(
 	vkCmdPushConstants(
 			command_buffer,
 			material.pipeline_layout,
-			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+			VK_SHADER_STAGE_VERTEX_BIT,
 			0,
 			sizeof(glm::mat4),
 			&matrix);
@@ -356,9 +357,10 @@ void Renderer::setup_draw()
 	render_pass_info.renderArea.offset = { 0, 0 };
 	render_pass_info.renderArea.extent = context->surface_capabilities.currentExtent;
 
-	std::array<VkClearValue, 2> clear_values {};
+	std::array<VkClearValue, 3> clear_values {};
 	clear_values[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
-	clear_values[1].depthStencil = { 1.0f, 0 };
+	clear_values[1].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+	clear_values[2].depthStencil = { 1.0f, 0 };
 
 	render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
 	render_pass_info.pClearValues = clear_values.data();

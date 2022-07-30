@@ -6,8 +6,8 @@
 #define VMA_DEBUG_DETECT_CORRUPTION 1
 
 #define VMA_DEBUG_LOG(format, ...) do { \
-        printf(format, #__VA_ARGS__); \
-        printf("\n"); \
+        /*printf(format, #__VA_ARGS__); \
+        printf("\n");*/ \
     } while(false)
 
 #endif
