@@ -10,7 +10,8 @@ BUILD_DIR = build
 TEST_DIR = tests
 
 CC = ccache clang++
-OPT = O3
+SHADER_CC = ccache glslc
+OPT = O1
 
 CFLAGS = -std=c++17 -Wall -Wextra -Wno-missing-braces -DDEBUG
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
@@ -46,10 +47,10 @@ else ifeq (bench,$(firstword $(MAKECMDGOALS)))
 endif
 
 $(BUILD_DIR)/shaders/%_vert.spv: $(SOURCE_DIR)/shaders/%.vert
-	glslc -o $@ $<
+	$(SHADER_CC) -o $@ $<
 
 $(BUILD_DIR)/shaders/%_frag.spv: $(SOURCE_DIR)/shaders/%.frag
-	glslc -o $@ $<
+	$(SHADER_CC) -o $@ $<
 
 $(OBJECT_DIR)/%.o: $(SOURCE_DIR)/%.cpp $(HEADERS)
 	$(CC) -c -o $@ $< $(CFLAGS) -$(OPT)
