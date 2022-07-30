@@ -165,7 +165,7 @@ int main(int argc, char** argv)
 				{ },
 				{{ 0, &floor_uniform.buffer }},
 				"shader_vert.spv", "white_out_frag.spv",
-				VK_CULL_MODE_BACK_BIT, VK_TRUE);
+				VK_CULL_MODE_NONE, VK_TRUE);
 
 		skybox.mesh.init(&context, "skybox.obj");
 		skybox.material.init(&context,
