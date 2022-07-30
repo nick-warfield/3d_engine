@@ -29,6 +29,7 @@ struct Context {
 	// handles
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debug_messenger;
+	VkDebugReportCallbackEXT debug_gpu_messenger;
 	VkPhysicalDevice physical_device;
 	VkDevice device;
 	VmaAllocator allocator;

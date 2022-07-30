@@ -16,6 +16,7 @@ layout(set = 1, binding = 1) uniform sampler2D tex_sampler;
 
 layout(location = 0) in vec3 normal;
 layout(location = 1) in vec2 uv;
+layout(location = 2) in vec3 frag_position;
 
 layout(location = 0) out vec4 out_color;
 
@@ -26,10 +27,10 @@ void main() {
 	float cos_theta = clamp(dot(normal, scene.sun_dir), 0, 1);
 	vec3 diffuse = scene.sun_color * intensity * cos_theta;
 	
-	vec3 c_pos = normalize(spec_data.camera_pos);
+	vec3 view_dir = normalize(spec_data.camera_pos - frag_position);
 	vec3 reflection = reflect(-scene.sun_dir, normal);
-	float cos_alpha = clamp(dot(c_pos, reflection), 0, 1);
-	vec3 specular = scene.sun_color * intensity * pow(cos_alpha, 2);
+	float cos_alpha = max(1 * dot(view_dir, reflection), 0);
+	vec3 specular = scene.sun_color * 2 * pow(cos_alpha, 32);
 
 	vec3 color = texture(tex_sampler, uv).rgb * (ambient + diffuse + specular);
 	out_color = vec4(color, 1.0);

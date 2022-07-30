@@ -89,13 +89,14 @@ int main(int argc, char** argv)
 		"VK_LAYER_KHRONOS_validation"
 	};
 	cc_info.required_extensions = {
-		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 	};
 	cc_info.preferred_extensions = {
 		VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
 		VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
 		VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
-		VK_AMD_MEMORY_OVERALLOCATION_BEHAVIOR_EXTENSION_NAME
+		VK_AMD_MEMORY_OVERALLOCATION_BEHAVIOR_EXTENSION_NAME,
+		VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME
 	};
 	cc_info.allocation_callbacks = nullptr;
 
@@ -113,7 +114,7 @@ int main(int argc, char** argv)
 	globs.sun_color = glm::vec3(1.0f, 1.0f, 1.0f);
 	globs.sun_dir = glm::normalize(glm::vec3(60, 60, 60));
 	globs.intensity = 0.5f;
-	globs.ambient_color = glm::vec3(0.01f);
+	globs.ambient_color = glm::vec3(0.05f);
 
 	try {
 		context.init(cc_info);
@@ -138,6 +139,11 @@ int main(int argc, char** argv)
 		floor_uniform.init(&context, { glm::vec3(0.3f) });
 		spec_uniform.init(&context, { camera.transform.position, 0.5f });
 
+		sphere.transform = Transform {
+			glm::vec3(3.0f, 3.0f, 0.0f),
+			glm::quat(0.0f, 0.0f, 0.0f, 1.0f),
+			glm::vec3(1.0f)
+		};
 		sphere.mesh.init(&context, "sphere.obj");
 		sphere.material.init(&context,
 				renderer.render_pass, renderer.descriptor_set_layout[0],
@@ -200,7 +206,7 @@ int main(int argc, char** argv)
 			camera.transform.position += v2;
 			skybox.transform.position = camera.transform.position;
 
-			spec_uniform.ubo().camera_direction = camera.transform.position;
+			spec_uniform.ubo().camera_direction = -camera.transform.position;
 			spec_uniform.update(renderer.frames.index);
 
 			cube.transform.rotation = glm::rotate(

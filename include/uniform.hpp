@@ -7,6 +7,7 @@
 #include <cstring>
 #include <any>
 #include <cstring>
+#include <iostream>
 
 namespace chch {
 
@@ -61,7 +62,7 @@ struct Uniform {
 	{
 		if (!is_stale[current_frame])
 			return;
-		buffer[current_frame].copy((void*)&m_ubo);
+	buffer[current_frame].copy((void*)&m_ubo);
 		is_stale[current_frame] = false;
 	}
 

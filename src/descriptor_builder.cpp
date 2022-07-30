@@ -31,8 +31,10 @@ VkResult DescriptorBuilder::build(VkDescriptorSetLayout* layout, VkDescriptorSet
 	if (result != VK_SUCCESS)
 		return result;
 
-	for (auto& w : m_writes)
+	for (auto& w : m_writes) {
 		w.dstSet = *set;
+		w.pNext = nullptr;
+	}
 
 	vkUpdateDescriptorSets(
 		m_context->device,

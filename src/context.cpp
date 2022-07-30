@@ -255,10 +255,11 @@ void Context::populate_surface_info()
 			supported_present_modes.data());
 
 		present_mode = VK_PRESENT_MODE_FIFO_KHR;
-		for (const auto& mode : supported_present_modes) {
-			if (mode == VK_PRESENT_MODE_MAILBOX_KHR)
-				present_mode = mode;
-		}
+		// causes static noise for some reason
+		//for (const auto& mode : supported_present_modes) {
+		//	if (mode == VK_PRESENT_MODE_MAILBOX_KHR)
+		//		present_mode = mode;
+		//}
 	}
 }
 
