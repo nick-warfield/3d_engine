@@ -32,8 +32,10 @@ struct Renderer {
 	VkSwapchainKHR swap_chain = VK_NULL_HANDLE;
 
 	VkRenderPass render_pass = VK_NULL_HANDLE;
+	VkRenderPass shadow_mapping_render_pass = VK_NULL_HANDLE;
 	Image depth_image;
 	Image msaa_image;
+	Image shadow_map_image;
 
 	VkDescriptorPool descriptor_pool;
 	per_frame<VkDescriptorSetLayout> descriptor_set_layout;
@@ -68,8 +70,7 @@ private:
 	void init_image_views();
 	void init_render_pass();
 	void init_framebuffers();
-	void init_depth_image();
-	void init_msaa_image();
+	void init_images();
 	void init_base_descriptor();
 	void init_camera();
 

@@ -211,7 +211,7 @@ int main(int argc, char** argv)
 
 			cube.transform.rotation = glm::rotate(
 				cube.transform.rotation,
-				glm::radians(0.01f),
+				glm::radians(90.0f * delta),
 				glm::normalize(glm::vec3(1.0f, 1.3f, 0.4f)));
 
 			sphere.transform.position = glm::vec3(

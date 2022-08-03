@@ -41,7 +41,11 @@ struct RenderPassBuilder {
 
 	RenderPassBuilder add_color_attachment(uint32_t attachment_index, VkFormat format);
 	RenderPassBuilder add_color_resolve_attachment(uint32_t attachment_index, VkFormat format);
-	RenderPassBuilder add_depth_attachment(uint32_t attachment_index);
+	RenderPassBuilder add_depth_attachment(
+		uint32_t attachment_index,
+		VkSampleCountFlagBits samples,
+		VkAttachmentStoreOp store_op,
+		VkImageLayout final_layout);
 	RenderPassBuilder add_input_attachment(uint32_t attachment_index);
 	SubpassBuilder begin_subpass(uint32_t subpass_index);
 	RenderPassBuilder add_dependency(

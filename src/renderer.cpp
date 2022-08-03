@@ -1,21 +1,20 @@
 #include "renderer.hpp"
 #include "buffer.hpp"
+#include "camera.hpp"
+#include "material.hpp"
 #include "mesh.hpp"
 #include "texture.hpp"
 #include "util.hpp"
 #include "vertex.hpp"
-#include "camera.hpp"
-#include "material.hpp"
 
-#include "render_pass_builder.hpp"
 #include "descriptor_builder.hpp"
+#include "render_pass_builder.hpp"
 
+#include <cstdint>
 #include <iostream>
 #include <vulkan/vulkan_core.h>
-#include <cstdint>
 
 namespace chch {
-
 
 void Renderer::init(Context* p_context, SceneGlobals scene_globals, Camera* p_camera)
 {
@@ -24,8 +23,7 @@ void Renderer::init(Context* p_context, SceneGlobals scene_globals, Camera* p_ca
 
 	init_image_views();
 	init_render_pass();
-	init_depth_image();
-	init_msaa_image();
+	init_images();
 	init_framebuffers();
 
 	scene_uniform.init(context, scene_globals);
@@ -127,7 +125,7 @@ void Renderer::init_image_views()
 	}
 }
 
-void Renderer::init_depth_image()
+void Renderer::init_images()
 {
 	VkFormat depth_format = find_supported_format(
 		context,
@@ -147,10 +145,7 @@ void Renderer::init_depth_image()
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VMA_MEMORY_USAGE_GPU_ONLY);
-}
 
-void Renderer::init_msaa_image()
-{
 	msaa_image.init(
 		context,
 		context->surface_capabilities.currentExtent.width,
@@ -163,27 +158,68 @@ void Renderer::init_msaa_image()
 		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VMA_MEMORY_USAGE_GPU_ONLY);
+
+	shadow_map_image.init(
+		context,
+		2048,
+		2048,
+		1,
+		VK_SAMPLE_COUNT_1_BIT,
+		depth_format,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_ASPECT_DEPTH_BIT,
+		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		VMA_MEMORY_USAGE_GPU_ONLY);
 }
 
 void Renderer::init_render_pass()
 {
 	auto r = RenderPassBuilder::begin(context)
-		.add_color_attachment(0, context->surface_format.format)
-		.add_color_resolve_attachment(1, context->surface_format.format)
-		.add_depth_attachment(2)
-		.begin_subpass(0)
-			.add_color_ref(0, 1)
-			.add_depth_ref(2)
-		.end_subpass()
-		.add_dependency(
-				VK_SUBPASS_EXTERNAL,
-				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-				0,
-				0,
-				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-				VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-		.build(&render_pass);
+				 .add_color_attachment(0, context->surface_format.format)
+				 .add_color_resolve_attachment(1, context->surface_format.format)
+				 .add_depth_attachment(2,
+					 context->msaa_samples,
+					 VK_ATTACHMENT_STORE_OP_DONT_CARE,
+					 VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+				 .begin_subpass(0)
+				 .add_color_ref(0, 1)
+				 .add_depth_ref(2)
+				 .end_subpass()
+				 .add_dependency(
+					 VK_SUBPASS_EXTERNAL,
+					 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+					 0,
+					 0,
+					 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+					 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+				 .build(&render_pass);
 	vk_check(r, "Failed to create render pass");
+
+	r = RenderPassBuilder::begin(context)
+			.add_depth_attachment(0,
+				VK_SAMPLE_COUNT_1_BIT,
+				VK_ATTACHMENT_STORE_OP_STORE,
+				VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL)
+			.begin_subpass(0)
+			.add_depth_ref(0)
+			.end_subpass()
+			.add_dependency(
+				VK_SUBPASS_EXTERNAL,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				VK_ACCESS_SHADER_READ_BIT,
+				0,
+				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+			.add_dependency(
+				0,
+				VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+				VK_SUBPASS_EXTERNAL,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				VK_ACCESS_SHADER_READ_BIT)
+			.build(&shadow_mapping_render_pass);
+	vk_check(r, "Failed to create shadow mapping render pass");
 }
 
 void Renderer::init_framebuffers()
@@ -217,9 +253,9 @@ void Renderer::init_base_descriptor()
 	descriptor_pool = make_descriptor_pool(context->device, 0, 1);
 
 	for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-	DescriptorBuilder::begin(context, descriptor_pool)
-		.bind_uniform(0, &scene_uniform.buffer[i])
-		.build(&descriptor_set_layout[i], &descriptor_set[i]);
+		DescriptorBuilder::begin(context, descriptor_pool)
+			.bind_uniform(0, &scene_uniform.buffer[i])
+			.build(&descriptor_set_layout[i], &descriptor_set[i]);
 	}
 }
 
@@ -252,12 +288,12 @@ void Renderer::record_command_buffer(
 
 	glm::mat4 matrix = correction_matrix * camera->matrix() * transform.matrix();
 	vkCmdPushConstants(
-			command_buffer,
-			material.pipeline_layout,
-			VK_SHADER_STAGE_VERTEX_BIT,
-			0,
-			sizeof(glm::mat4),
-			&matrix);
+		command_buffer,
+		material.pipeline_layout,
+		VK_SHADER_STAGE_VERTEX_BIT,
+		0,
+		sizeof(glm::mat4),
+		&matrix);
 
 	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
 
@@ -308,8 +344,7 @@ void Renderer::recreate_swap_chain()
 
 	init_swap_chain();
 	init_image_views();
-	init_depth_image();
-	init_msaa_image();
+	init_images();
 	init_framebuffers();
 }
 

@@ -124,7 +124,11 @@ RenderPassBuilder RenderPassBuilder::add_color_resolve_attachment(uint32_t attac
 	return *this;
 }
 
-RenderPassBuilder RenderPassBuilder::add_depth_attachment(uint32_t attachment_index)
+RenderPassBuilder RenderPassBuilder::add_depth_attachment(
+		uint32_t attachment_index,
+		VkSampleCountFlagBits samples,
+		VkAttachmentStoreOp store_op,
+		VkImageLayout final_layout)
 {
 	VkAttachmentDescription attachment {};
 	attachment.format = find_supported_format(
@@ -132,13 +136,13 @@ RenderPassBuilder RenderPassBuilder::add_depth_attachment(uint32_t attachment_in
 		{ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-	attachment.samples = m_context->msaa_samples;
+	attachment.samples = samples;
 	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment.storeOp = store_op;
 	attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	attachment.finalLayout = final_layout;
 
 	m_attachments[attachment_index] = attachment;
 	return *this;
@@ -173,6 +177,8 @@ RenderPassBuilder RenderPassBuilder::add_dependency(
 	dependency.dstSubpass = dst_subpass_index;
 	dependency.dstStageMask = dst_stage_mask;
 	dependency.dstAccessMask = dst_access_mask;
+
+	dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
 	m_depends.push_back(dependency);
 	return *this;
